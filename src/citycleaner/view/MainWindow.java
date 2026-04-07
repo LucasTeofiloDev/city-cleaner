@@ -1,6 +1,6 @@
 package citycleaner.view;
 
-import citycleaner.util.Constants;
+import citycleaner.util.AudioManager;
 
 import javax.swing.*;
 
@@ -13,14 +13,46 @@ public class MainWindow extends JFrame {
         setTitle("City Cleaner - Environmental Platformer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
-        
-        // Adicionar painel do jogo
-        GamePanel gamePanel = new GamePanel();
-        add(gamePanel);
+
+        AudioManager.playBackgroundMusic("audio/music/GameMusic.wav");
+
+        MenuPanel menuPanel = new MenuPanel(
+            this::startCutscenes,
+            this::exitGame,
+            this::toggleSound,
+            AudioManager::isMuted
+        );
+        add(menuPanel);
         
         // Configurar tamanho e posição
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
+    }
+
+    private void startCutscenes() {
+        IntroScenePanel introScenePanel = new IntroScenePanel(this::startGame);
+        setContentPane(introScenePanel);
+        revalidate();
+        repaint();
+        introScenePanel.requestFocusInWindow();
+    }
+
+    private void startGame() {
+        GamePanel gamePanel = new GamePanel();
+        setContentPane(gamePanel);
+        revalidate();
+        repaint();
+        gamePanel.requestFocusInWindow();
+    }
+
+    private void exitGame() {
+        AudioManager.stopBackgroundMusic();
+        dispose();
+        System.exit(0);
+    }
+
+    private void toggleSound() {
+        AudioManager.toggleMuted();
     }
 }
