@@ -6,10 +6,12 @@ import citycleaner.model.physics.PhysicsEngine;
 import citycleaner.model.world.Platform;
 import citycleaner.model.world.TrashItem;
 import citycleaner.util.Constants;
+import citycleaner.util.ResourceLoader;
 import citycleaner.view.renderer.BackgroundRenderer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,15 +24,21 @@ public class GamePanel extends JPanel {
     private final List<Point> teleportMarkers;
     private final List<TrashItem> trashItems;
     private final KeyboardController keyboardController;
+    private final BufferedImage playerSpriteOne;
+    private final BufferedImage playerSpriteTwo;
     private boolean running = true;
     private int currentLevel = 1;
     private int nextTeleportIndex = 0;
+    private int playerAnimationTick = 0;
+    private boolean useFirstSprite = true;
 
     public GamePanel() {
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
         setFocusable(true);
 
         player = new Player(100, 300);
+        playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
+        playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
 
         teleportMarkers = createTeleportMarkers();
         trashItems = createTrashItems();
@@ -112,6 +120,7 @@ public class GamePanel extends JPanel {
 
     private void update() {
         PhysicsEngine.update(player, platforms);
+        updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
         collectTrashItems();
     }
 
@@ -191,16 +200,40 @@ public class GamePanel extends JPanel {
     }
 
     private void drawPlayer(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
+        BufferedImage currentSprite = useFirstSprite ? playerSpriteOne : playerSpriteTwo;
+        if (currentSprite != null) {
+            g.drawImage(
+                currentSprite,
+                (int) player.getX(),
+                (int) player.getY(),
+                Constants.PLAYER_WIDTH,
+                Constants.PLAYER_HEIGHT,
+                null
+            );
+            return;
+        }
 
+        Stroke previousStroke = g.getStroke();
         g.setColor(new Color(255, 128, 0));
         g.fillRect((int) player.getX(), (int) player.getY(), Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);
-
         g.setColor(new Color(200, 100, 0));
         g.setStroke(new BasicStroke(2f));
         g.drawRect((int) player.getX(), (int) player.getY(), Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);
-
         g.setStroke(previousStroke);
+    }
+
+    private void updatePlayerAnimation(boolean moving) {
+        if (!moving) {
+            playerAnimationTick = 0;
+            useFirstSprite = true;
+            return;
+        }
+
+        playerAnimationTick++;
+        if (playerAnimationTick >= 8) {
+            playerAnimationTick = 0;
+            useFirstSprite = !useFirstSprite;
+        }
     }
 
     private void drawHUD(Graphics2D g) {
