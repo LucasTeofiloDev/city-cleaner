@@ -31,11 +31,19 @@ public class MainWindow extends JFrame {
     }
 
     private void startCutscenes() {
-        IntroScenePanel introScenePanel = new IntroScenePanel(this::startGame);
+        IntroScenePanel introScenePanel = new IntroScenePanel(this::startPhaseOne);
         setContentPane(introScenePanel);
         revalidate();
         repaint();
         introScenePanel.requestFocusInWindow();
+    }
+
+    private void startPhaseOne() {
+        PhaseOnePanel phaseOnePanel = new PhaseOnePanel(this::startGame);
+        setContentPane(phaseOnePanel);
+        revalidate();
+        repaint();
+        phaseOnePanel.requestFocusInWindow();
     }
 
     private void startGame() {
