@@ -14,8 +14,8 @@ public class Constants {
     public static final int HUD_HEIGHT = 72;
     
     // Dimensões do jogador
-    public static final int PLAYER_WIDTH = 32;
-    public static final int PLAYER_HEIGHT = 48;
+    public static final int PLAYER_WIDTH = 165;
+    public static final int PLAYER_HEIGHT = 240;
     
     // Física
     public static final float GRAVITY = 0.6f;

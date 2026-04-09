@@ -18,6 +18,7 @@ public class Player {
     
     // Direção: 1 = direita, -1 = esquerda, 0 = parado
     private int direction = 0;
+    private int facingDirection = 1;
     
     public Player(float startX, float startY) {
         this.x = startX;
@@ -65,10 +66,12 @@ public class Player {
     
     public void moveLeft() {
         direction = -1;
+        facingDirection = -1;
     }
     
     public void moveRight() {
         direction = 1;
+        facingDirection = 1;
     }
     
     public void stopMoving() {
@@ -93,16 +96,6 @@ public class Player {
         onGround = false;
         jumping = false;
     }
-
-    public void teleportTo(double targetX, double targetY) {
-        x = (float) targetX;
-        y = (float) targetY;
-        velX = 0;
-        velY = 0;
-        direction = 0;
-        onGround = false;
-        jumping = false;
-    }
     
     // Getters e Setters
     public float getX() { return x; }
@@ -111,6 +104,7 @@ public class Player {
     public float getVelY() { return velY; }
     public int getWidth() { return Constants.PLAYER_WIDTH; }
     public int getHeight() { return Constants.PLAYER_HEIGHT; }
+    public int getFacingDirection() { return facingDirection; }
     
     public int getLives() { return lives; }
     public int getScore() { return score; }
@@ -123,6 +117,7 @@ public class Player {
     
     public void setY(double y) { this.y = (float) y; }
     public void setX(double x) { this.x = (float) x; }
+    public boolean isMovingHorizontally() { return direction != 0; }
     
     public Rectangle getBounds() {
         return new Rectangle((int)x, (int)y, Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);

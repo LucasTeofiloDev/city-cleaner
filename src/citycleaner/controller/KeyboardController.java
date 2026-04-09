@@ -9,17 +9,11 @@ import java.awt.event.KeyListener;
  */
 public class KeyboardController implements KeyListener {
     private final Player player;
-    private final Runnable teleportAction;
     private boolean leftPressed = false;
     private boolean rightPressed = false;
     
     public KeyboardController(Player player) {
-        this(player, null);
-    }
-
-    public KeyboardController(Player player, Runnable teleportAction) {
         this.player = player;
-        this.teleportAction = teleportAction;
     }
     
     @Override
@@ -36,9 +30,6 @@ public class KeyboardController implements KeyListener {
         }
         if (key == KeyEvent.VK_SPACE || key == KeyEvent.VK_W || key == KeyEvent.VK_UP) {
             player.jump();
-        }
-        if ((key == KeyEvent.VK_T || key == KeyEvent.VK_E) && teleportAction != null) {
-            teleportAction.run();
         }
     }
     

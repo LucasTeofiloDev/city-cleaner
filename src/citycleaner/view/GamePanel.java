@@ -6,10 +6,12 @@ import citycleaner.model.physics.PhysicsEngine;
 import citycleaner.model.world.Platform;
 import citycleaner.model.world.TrashItem;
 import citycleaner.util.Constants;
+import citycleaner.util.ResourceLoader;
 import citycleaner.view.renderer.BackgroundRenderer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,43 +19,35 @@ import java.util.List;
  * Painel principal do jogo: renderizacao e game loop.
  */
 public class GamePanel extends JPanel {
+    private static final boolean SHOW_PLATFORM_OVERLAYS = false;
+    private static final int PLAYER_SPRITE_HEIGHT = 60;
+    private static final int PLAYER_ANIMATION_SPEED = 10;
+    private static final Color PLAYER_BACKGROUND_KEY = new Color(247, 247, 247);
+    private static final int PLAYER_BACKGROUND_TOLERANCE = 12;
+
     private final Player player;
     private final List<Platform> platforms;
-    private final List<Point> teleportMarkers;
     private final List<TrashItem> trashItems;
     private final KeyboardController keyboardController;
+    private final BufferedImage[] playerFrames;
     private boolean running = true;
     private int currentLevel = 1;
-    private int nextTeleportIndex = 0;
+    private int playerAnimationTick = 0;
 
     public GamePanel() {
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
         setFocusable(true);
 
         player = new Player(100, 300);
+        playerFrames = loadPlayerFrames();
 
-        teleportMarkers = createTeleportMarkers();
         trashItems = createTrashItems();
         platforms = createLevel(currentLevel);
 
-        keyboardController = new KeyboardController(player, this::teleportToNextMarker);
+        keyboardController = new KeyboardController(player);
         addKeyListener(keyboardController);
 
         startGameLoop();
-    }
-
-    private List<Point> createTeleportMarkers() {
-        List<Point> markers = new ArrayList<>();
-
-        // Pontos definidos manualmente com base no print enviado pelo usuario.
-        markers.add(new Point(246, 324)); // sacolinha branca ao lado da lixeira
-        markers.add(new Point(348, 232)); // plataforma da casinha
-        markers.add(new Point(864, 232)); // plataforma superior direita
-        markers.add(new Point(764, 292)); // plataforma direita do meio
-        markers.add(new Point(514, 362)); // plataforma central
-        markers.add(new Point(264, 432)); // plataforma inferior esquerda
-
-        return markers;
     }
 
     private List<TrashItem> createTrashItems() {
@@ -112,19 +106,8 @@ public class GamePanel extends JPanel {
 
     private void update() {
         PhysicsEngine.update(player, platforms);
+        updatePlayerAnimation();
         collectTrashItems();
-    }
-
-    private void teleportToNextMarker() {
-        if (teleportMarkers.isEmpty()) {
-            return;
-        }
-
-        Point target = teleportMarkers.get(nextTeleportIndex);
-        player.teleportTo(target.x - (Constants.PLAYER_WIDTH / 2), target.y - Constants.PLAYER_HEIGHT);
-        nextTeleportIndex = (nextTeleportIndex + 1) % teleportMarkers.size();
-        collectTrashItems();
-        repaint();
     }
 
     @Override
@@ -134,8 +117,9 @@ public class GamePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         BackgroundRenderer.draw(g2d, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
-        drawPlatforms(g2d);
-        drawTeleportMarkers(g2d);
+        if (SHOW_PLATFORM_OVERLAYS) {
+            drawPlatforms(g2d);
+        }
         drawPlayer(g2d);
         drawHUD(g2d);
     }
@@ -155,30 +139,6 @@ public class GamePanel extends JPanel {
 
         g.setStroke(previousStroke);
     }
-
-    private void drawTeleportMarkers(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
-
-        for (int i = 0; i < teleportMarkers.size(); i++) {
-            Point marker = teleportMarkers.get(i);
-            int radius = i == nextTeleportIndex ? 24 : 22;
-            int diameter = radius * 2;
-            int x = marker.x - radius;
-            int y = marker.y - radius;
-
-            g.setColor(new Color(255, 0, 0, i == nextTeleportIndex ? 90 : 60));
-            g.fillOval(x, y, diameter, diameter);
-
-            g.setColor(new Color(220, 20, 20, 220));
-            g.setStroke(new BasicStroke(i == nextTeleportIndex ? 4f : 3f));
-            g.drawOval(x, y, diameter, diameter);
-            g.drawLine(marker.x - 6, marker.y - 6, marker.x + 6, marker.y + 6);
-            g.drawLine(marker.x - 6, marker.y + 6, marker.x + 6, marker.y - 6);
-        }
-
-        g.setStroke(previousStroke);
-    }
-
     private void collectTrashItems() {
         Rectangle playerBounds = player.getBounds();
 
@@ -191,6 +151,39 @@ public class GamePanel extends JPanel {
     }
 
     private void drawPlayer(Graphics2D g) {
+        if (playerFrames.length == 0) {
+            drawFallbackPlayer(g);
+            return;
+        }
+
+        BufferedImage currentFrame = playerFrames[0];
+        if (playerFrames.length > 1 && player.isMovingHorizontally()) {
+            currentFrame = playerFrames[(playerAnimationTick / PLAYER_ANIMATION_SPEED) % playerFrames.length];
+        }
+
+        int spriteHeight = PLAYER_SPRITE_HEIGHT;
+        int spriteWidth = Math.max(
+            Constants.PLAYER_WIDTH,
+            Math.round((float) currentFrame.getWidth() * spriteHeight / currentFrame.getHeight())
+        );
+        int spriteX = Math.round(player.getX()) - (spriteWidth - Constants.PLAYER_WIDTH) / 2;
+        int spriteY = Math.round(player.getY()) + Constants.PLAYER_HEIGHT - spriteHeight;
+
+        Object previousInterpolation = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+        if (player.getFacingDirection() < 0) {
+            g.drawImage(currentFrame, spriteX + spriteWidth, spriteY, -spriteWidth, spriteHeight, null);
+        } else {
+            g.drawImage(currentFrame, spriteX, spriteY, spriteWidth, spriteHeight, null);
+        }
+
+        if (previousInterpolation != null) {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, previousInterpolation);
+        }
+    }
+
+    private void drawFallbackPlayer(Graphics2D g) {
         Stroke previousStroke = g.getStroke();
 
         g.setColor(new Color(255, 128, 0));
@@ -201,6 +194,116 @@ public class GamePanel extends JPanel {
         g.drawRect((int) player.getX(), (int) player.getY(), Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);
 
         g.setStroke(previousStroke);
+    }
+
+    private void updatePlayerAnimation() {
+        if (playerFrames.length <= 1 || !player.isMovingHorizontally()) {
+            playerAnimationTick = 0;
+            return;
+        }
+
+        playerAnimationTick = (playerAnimationTick + 1) % (playerFrames.length * PLAYER_ANIMATION_SPEED);
+    }
+
+    private BufferedImage[] loadPlayerFrames() {
+        BufferedImage frame1 = preparePlayerSprite(ResourceLoader.loadImage("sprites/p1.png"));
+        BufferedImage frame2 = preparePlayerSprite(ResourceLoader.loadImage("sprites/p2.png"));
+
+        if (frame1 != null && frame2 != null) {
+            return new BufferedImage[] { frame1, frame2 };
+        }
+        if (frame1 != null) {
+            return new BufferedImage[] { frame1 };
+        }
+        if (frame2 != null) {
+            return new BufferedImage[] { frame2 };
+        }
+
+        return new BufferedImage[0];
+    }
+
+    private BufferedImage preparePlayerSprite(BufferedImage source) {
+        if (source == null) {
+            return null;
+        }
+
+        BufferedImage transparent = applyTransparencyKey(
+            source,
+            PLAYER_BACKGROUND_KEY,
+            PLAYER_BACKGROUND_TOLERANCE
+        );
+        return cropTransparentBorders(transparent);
+    }
+
+    private BufferedImage applyTransparencyKey(BufferedImage source, Color keyColor, int tolerance) {
+        BufferedImage transparent = new BufferedImage(
+            source.getWidth(),
+            source.getHeight(),
+            BufferedImage.TYPE_INT_ARGB
+        );
+
+        for (int y = 0; y < source.getHeight(); y++) {
+            for (int x = 0; x < source.getWidth(); x++) {
+                Color pixel = new Color(source.getRGB(x, y), true);
+                if (isWithinTolerance(pixel, keyColor, tolerance)) {
+                    transparent.setRGB(x, y, 0x00000000);
+                } else {
+                    transparent.setRGB(x, y, source.getRGB(x, y));
+                }
+            }
+        }
+
+        return transparent;
+    }
+
+    private boolean isWithinTolerance(Color pixel, Color keyColor, int tolerance) {
+        return Math.abs(pixel.getRed() - keyColor.getRed()) <= tolerance
+            && Math.abs(pixel.getGreen() - keyColor.getGreen()) <= tolerance
+            && Math.abs(pixel.getBlue() - keyColor.getBlue()) <= tolerance;
+    }
+
+    private BufferedImage cropTransparentBorders(BufferedImage source) {
+        int minX = source.getWidth();
+        int minY = source.getHeight();
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < source.getHeight(); y++) {
+            for (int x = 0; x < source.getWidth(); x++) {
+                int alpha = (source.getRGB(x, y) >>> 24) & 0xFF;
+                if (alpha == 0) {
+                    continue;
+                }
+
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+
+        int croppedWidth = maxX - minX + 1;
+        int croppedHeight = maxY - minY + 1;
+        BufferedImage cropped = new BufferedImage(croppedWidth, croppedHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = cropped.createGraphics();
+        graphics.drawImage(
+            source,
+            0,
+            0,
+            croppedWidth,
+            croppedHeight,
+            minX,
+            minY,
+            maxX + 1,
+            maxY + 1,
+            null
+        );
+        graphics.dispose();
+        return cropped;
     }
 
     private void drawHUD(Graphics2D g) {
@@ -218,8 +321,5 @@ public class GamePanel extends JPanel {
 
         String levelText = "LEVEL " + currentLevel;
         g.drawString(levelText, Constants.WINDOW_WIDTH - 200, Constants.GAME_HEIGHT + 45);
-
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        g.drawString("T ou E = teleporta para o proximo ponto", 20, Constants.GAME_HEIGHT + 66);
     }
 }
