@@ -36,6 +36,7 @@ public class PhaseOnePanel extends JPanel {
     private final List<DecisionPoint> decisions;
     private final KeyboardController movementController;
     private final JButton continueButton;
+    private final JButton tutorialButton;
     private final BufferedImage phaseBackground;
     private final BufferedImage playerSpriteOne;
     private final BufferedImage playerSpriteTwo;
@@ -53,6 +54,7 @@ public class PhaseOnePanel extends JPanel {
     private int pollutionLevel = 60;
     private int playerAnimationTick = 0;
     private boolean useFirstSprite = true;
+    private boolean showTutorial = true;
 
     public PhaseOnePanel(Runnable onPhaseCompleted) {
         this.onPhaseCompleted = onPhaseCompleted;
@@ -81,6 +83,13 @@ public class PhaseOnePanel extends JPanel {
         continueButton.addActionListener(e -> this.onPhaseCompleted.run());
         add(continueButton);
 
+        tutorialButton = new JButton("Entendi");
+        tutorialButton.setFont(new Font("Dialog", Font.BOLD, 20));
+        tutorialButton.setFocusable(false);
+        tutorialButton.setVisible(true);
+        tutorialButton.addActionListener(e -> closeTutorial());
+        add(tutorialButton);
+
         startGameLoop();
     }
 
@@ -90,6 +99,15 @@ public class PhaseOnePanel extends JPanel {
         int width = 280;
         int height = 48;
         continueButton.setBounds((getWidth() - width) / 2, Constants.GAME_HEIGHT - 60, width, height);
+
+        int tutorialButtonWidth = 190;
+        int tutorialButtonHeight = 46;
+        tutorialButton.setBounds(
+            (getWidth() - tutorialButtonWidth) / 2,
+            (Constants.GAME_HEIGHT / 2) + 144,
+            tutorialButtonWidth,
+            tutorialButtonHeight
+        );
     }
 
     private List<Platform> createPlatforms() {
@@ -145,6 +163,15 @@ public class PhaseOnePanel extends JPanel {
     }
 
     private void update() {
+        tutorialButton.setVisible(showTutorial);
+
+        if (showTutorial) {
+            player.stopMoving();
+            updatePlayerAnimation(false);
+            continueButton.setVisible(false);
+            return;
+        }
+
         if (!isPhaseComplete() && !gameOver) {
             if (activeDecision == null && activeTransportPrompt == TransportChoice.NONE) {
                 PhysicsEngine.update(player, platforms);
@@ -162,6 +189,12 @@ public class PhaseOnePanel extends JPanel {
         }
 
         continueButton.setVisible(isPhaseComplete());
+    }
+
+    private void closeTutorial() {
+        showTutorial = false;
+        tutorialButton.setVisible(false);
+        requestFocusInWindow();
     }
 
     private void updateNearbyTransport() {
@@ -298,6 +331,10 @@ public class PhaseOnePanel extends JPanel {
 
         if (gameOver) {
             drawGameOverOverlay(g2d);
+        }
+
+        if (showTutorial) {
+            drawTutorialOverlay(g2d);
         }
     }
 
@@ -538,9 +575,53 @@ public class PhaseOnePanel extends JPanel {
         g.drawString("Tente escolhas mais sustentaveis na proxima tentativa.", 260, 308);
     }
 
+    private void drawTutorialOverlay(Graphics2D g) {
+        int boxX = 110;
+        int boxY = 80;
+        int boxW = Constants.WINDOW_WIDTH - 220;
+        int boxH = Constants.GAME_HEIGHT - 140;
+
+        g.setColor(new Color(10, 16, 28, 220));
+        g.fillRoundRect(boxX, boxY, boxW, boxH, 24, 24);
+        g.setColor(new Color(233, 239, 250));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(boxX, boxY, boxW, boxH, 24, 24);
+
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Dialog", Font.BOLD, 32));
+        g.drawString("Como jogar", boxX + 24, boxY + 46);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 21));
+        g.drawString("Movimento:", boxX + 24, boxY + 88);
+        g.drawString("- A e D para andar", boxX + 40, boxY + 120);
+        g.drawString("- W (ou ESPACO) para pular", boxX + 40, boxY + 150);
+
+        g.drawString("Decisoes:", boxX + 24, boxY + 198);
+        g.drawString("- Aproxime-se da bicicleta ou do carro", boxX + 40, boxY + 230);
+        g.drawString("- Quando aparecer o botao E, aperte E para abrir as opcoes", boxX + 40, boxY + 260);
+        g.drawString("- Pressione 1 para escolher e 2 para deixar pra la", boxX + 40, boxY + 290);
+
+        g.drawString("Barra de poluicao (lado direito):", boxX + 24, boxY + 338);
+        g.drawString("- Bicicleta reduz 10% da poluicao", boxX + 40, boxY + 370);
+        g.drawString("- Carro aumenta 10% da poluicao", boxX + 40, boxY + 400);
+        g.drawString("- Se chegar a 100%, e GAME OVER", boxX + 40, boxY + 430);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 18));
+        g.setColor(new Color(210, 220, 240));
+        g.drawString("Clique em Entendi ou pressione ENTER para continuar.", boxX + 24, boxY + boxH - 20);
+    }
+
     private class DecisionInputController extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e) {
+            if (showTutorial) {
+                int key = e.getKeyCode();
+                if (key == KeyEvent.VK_ENTER || key == KeyEvent.VK_E) {
+                    closeTutorial();
+                }
+                return;
+            }
+
             if (gameOver) {
                 return;
             }
