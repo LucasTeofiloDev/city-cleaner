@@ -21,14 +21,22 @@ import java.util.List;
  */
 public class PhaseOnePanel extends JPanel {
     private static final int MARKER_TRIGGER_DISTANCE = 36;
-    private static final int TRANSPORT_TRIGGER_DISTANCE = 120;
+    private static final int TRANSPORT_TRIGGER_DISTANCE = 145;
     private static final int POLLUTION_LIMIT = 100;
-    private static final int BIKE_X = 280;
-    private static final int CAR_X = 700;
+    private static final int BIKE_X = 460;
+    private static final int CAR_X = 930;
     private static final int BIKE_WIDTH = 220;
     private static final int BIKE_HEIGHT = 120;
-    private static final int CAR_WIDTH = 275;
-    private static final int CAR_HEIGHT = 150;
+    private static final int BIKE_BASELINE_OFFSET = -22;
+    private static final int CAR_WIDTH = 360;
+    private static final int CAR_HEIGHT = 196;
+    private static final int TRANSPORT_TRANSITION_MS = 1_600;
+    private static final int INTRO_SPEECH_TOTAL_MS = 24_000;
+    private static final String[] INTRO_SPEECH_LINES = new String[] {
+        "Se quero ver mudanca, preciso comecar por mim.",
+        "Hora de sair e fazer a diferenca.",
+        "Como vou me locomover?"
+    };
 
     private final Runnable onPhaseCompleted;
     private final Player player;
@@ -37,7 +45,8 @@ public class PhaseOnePanel extends JPanel {
     private final KeyboardController movementController;
     private final JButton continueButton;
     private final JButton tutorialButton;
-    private final BufferedImage phaseBackground;
+    private final BufferedImage phaseBackgroundStart;
+    private final BufferedImage phaseBackgroundAfterTransport;
     private final BufferedImage playerSpriteOne;
     private final BufferedImage playerSpriteTwo;
     private final BufferedImage bikeSprite;
@@ -48,13 +57,20 @@ public class PhaseOnePanel extends JPanel {
     private DecisionPoint activeDecision;
     private TransportChoice nearbyTransport = TransportChoice.NONE;
     private TransportChoice activeTransportPrompt = TransportChoice.NONE;
+    private TransportChoice transitionTransportChoice = TransportChoice.NONE;
     private boolean transportResolved = false;
+    private boolean usingPostTransportScenario = false;
+    private boolean transportTransitionActive = false;
+    private boolean transportTransitionHalfReached = false;
+    private long transportTransitionStartMs;
     private boolean gameOver = false;
     private int ecoScore = 0;
     private int pollutionLevel = 60;
     private int playerAnimationTick = 0;
     private boolean useFirstSprite = true;
     private boolean showTutorial = true;
+    private boolean showIntroSpeech = true;
+    private long introSpeechStartMs;
 
     public PhaseOnePanel(Runnable onPhaseCompleted) {
         this.onPhaseCompleted = onPhaseCompleted;
@@ -64,13 +80,15 @@ public class PhaseOnePanel extends JPanel {
         setLayout(null);
 
         player = new Player(245, 300);
-        phaseBackground = ResourceLoader.loadImage("sprites/Fase1.png");
+        phaseBackgroundStart = ResourceLoader.loadImage("sprites/Fase1.png");
+        phaseBackgroundAfterTransport = ResourceLoader.loadImage("sprites/CenarioFase1_2.png");
         playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
         playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
         bikeSprite = ResourceLoader.loadImage("sprites/Bike.png");
         carSprite = ResourceLoader.loadImage("sprites/Carro.png");
         platforms = createPlatforms();
         decisions = createDecisionPoints();
+        introSpeechStartMs = System.currentTimeMillis();
 
         movementController = new KeyboardController(player);
         addKeyListener(movementController);
@@ -163,9 +181,19 @@ public class PhaseOnePanel extends JPanel {
     }
 
     private void update() {
+        updateIntroSpeechState();
+        updateTransportTransition();
+
         tutorialButton.setVisible(showTutorial);
 
         if (showTutorial) {
+            player.stopMoving();
+            updatePlayerAnimation(false);
+            continueButton.setVisible(false);
+            return;
+        }
+
+        if (transportTransitionActive) {
             player.stopMoving();
             updatePlayerAnimation(false);
             continueButton.setVisible(false);
@@ -189,6 +217,45 @@ public class PhaseOnePanel extends JPanel {
         }
 
         continueButton.setVisible(isPhaseComplete());
+    }
+
+    private void updateTransportTransition() {
+        if (!transportTransitionActive) {
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - transportTransitionStartMs;
+        double progress = Math.min(1.0, elapsed / (double) TRANSPORT_TRANSITION_MS);
+
+        if (!transportTransitionHalfReached && progress >= 0.5) {
+            transportTransitionHalfReached = true;
+            applyTransportChoice(transitionTransportChoice);
+            transitionTransportChoice = TransportChoice.NONE;
+            usingPostTransportScenario = true;
+            transportResolved = true;
+            nearbyTransport = TransportChoice.NONE;
+            showIntroSpeech = false;
+
+            // Enter the second scenario from the left side of the map.
+            double spawnX = 28;
+            double spawnY = Constants.GAME_HEIGHT - 64 - Constants.PLAYER_HEIGHT;
+            player.teleportTo(spawnX, spawnY);
+        }
+
+        if (progress >= 1.0) {
+            transportTransitionActive = false;
+        }
+    }
+
+    private void updateIntroSpeechState() {
+        if (!showIntroSpeech) {
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - introSpeechStartMs;
+        if (elapsed >= INTRO_SPEECH_TOTAL_MS) {
+            showIntroSpeech = false;
+        }
     }
 
     private void closeTutorial() {
@@ -248,7 +315,23 @@ public class PhaseOnePanel extends JPanel {
             return;
         }
 
-        boolean sustainableChoice = activeTransportPrompt == TransportChoice.BIKE;
+        transitionTransportChoice = activeTransportPrompt;
+        activeTransportPrompt = TransportChoice.NONE;
+        startTransportTransition();
+    }
+
+    private void startTransportTransition() {
+        transportTransitionActive = true;
+        transportTransitionHalfReached = false;
+        transportTransitionStartMs = System.currentTimeMillis();
+    }
+
+    private void applyTransportChoice(TransportChoice choice) {
+        if (choice == TransportChoice.NONE) {
+            return;
+        }
+
+        boolean sustainableChoice = choice == TransportChoice.BIKE;
         if (sustainableChoice) {
             ecoScore += 20;
             pollutionLevel = Math.max(0, pollutionLevel - 10);
@@ -259,13 +342,9 @@ public class PhaseOnePanel extends JPanel {
 
         checkGameOver();
         if (gameOver) {
-            activeTransportPrompt = TransportChoice.NONE;
             activeDecision = null;
             return;
         }
-
-        transportResolved = true;
-        activeTransportPrompt = TransportChoice.NONE;
     }
 
     private void answerDecision(int optionNumber) {
@@ -314,6 +393,7 @@ public class PhaseOnePanel extends JPanel {
         drawTransportKeyHint(g2d);
         drawDecisionMarkers(g2d);
         drawPlayer(g2d);
+        drawIntroSpeechBubble(g2d);
         drawPollutionBar(g2d);
         drawHud(g2d);
 
@@ -333,24 +413,46 @@ public class PhaseOnePanel extends JPanel {
             drawGameOverOverlay(g2d);
         }
 
+        if (transportTransitionActive) {
+            drawTransportTransition(g2d);
+        }
+
         if (showTutorial) {
             drawTutorialOverlay(g2d);
         }
     }
 
+    private void drawTransportTransition(Graphics2D g) {
+        long elapsed = System.currentTimeMillis() - transportTransitionStartMs;
+        double progress = Math.min(1.0, elapsed / (double) TRANSPORT_TRANSITION_MS);
+
+        float alphaFactor = progress < 0.5
+            ? (float) (progress * 2.0)
+            : (float) ((1.0 - progress) * 2.0);
+
+        int alpha = Math.min(220, Math.max(0, (int) (255 * alphaFactor)));
+        g.setColor(new Color(0, 0, 0, alpha));
+        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+    }
+
     private void drawPhaseBackground(Graphics2D g) {
-        if (phaseBackground != null) {
-            g.drawImage(phaseBackground, 0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT, null);
+        BufferedImage currentBackground = usingPostTransportScenario ? phaseBackgroundAfterTransport : phaseBackgroundStart;
+        if (currentBackground != null) {
+            g.drawImage(currentBackground, 0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT, null);
         } else {
             BackgroundRenderer.draw(g, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
         }
     }
 
     private void drawTransportObjects(Graphics2D g) {
+        if (transportResolved || transportTransitionActive) {
+            return;
+        }
+
         int bikeX = BIKE_X - (BIKE_WIDTH / 2);
         int carX = CAR_X - (CAR_WIDTH / 2);
         int groundY = Constants.GAME_HEIGHT - 64;
-        int bikeY = groundY - BIKE_HEIGHT;
+        int bikeY = groundY - BIKE_HEIGHT + BIKE_BASELINE_OFFSET;
         int carY = groundY - CAR_HEIGHT;
 
         if (bikeSprite != null) {
@@ -416,6 +518,65 @@ public class PhaseOnePanel extends JPanel {
             g.setFont(new Font("Dialog", Font.BOLD, 16));
             g.drawString(String.valueOf(point.displayOrder), point.markerX - 5, y + 23);
         }
+    }
+
+    private void drawIntroSpeechBubble(Graphics2D g) {
+        if (!showIntroSpeech || INTRO_SPEECH_LINES.length == 0) {
+            return;
+        }
+
+        Font previousFont = g.getFont();
+        g.setFont(new Font("Dialog", Font.BOLD, 18));
+        FontMetrics metrics = g.getFontMetrics();
+
+        int maxTextWidth = 0;
+        for (String line : INTRO_SPEECH_LINES) {
+            maxTextWidth = Math.max(maxTextWidth, metrics.stringWidth(line));
+        }
+
+        int lineHeight = 24;
+        int bubbleWidth = maxTextWidth + 34;
+        int bubbleHeight = 26 + (INTRO_SPEECH_LINES.length * lineHeight);
+
+        int playerCenterX = (int) player.getX() + (Constants.PLAYER_WIDTH / 2);
+        int bubbleX = playerCenterX - (bubbleWidth / 2);
+        int bubbleY = (int) player.getY() - 130;
+
+        int rightLimit = Constants.WINDOW_WIDTH - 68;
+        if (bubbleX < 12) {
+            bubbleX = 12;
+        }
+        if (bubbleX + bubbleWidth > rightLimit) {
+            bubbleX = rightLimit - bubbleWidth;
+        }
+        if (bubbleY < 12) {
+            bubbleY = 12;
+        }
+
+        g.setColor(new Color(255, 255, 255, 235));
+        g.fillRoundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 16, 16);
+        g.setColor(new Color(40, 45, 55, 235));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 16, 16);
+
+        int tailX = Math.max(bubbleX + 14, Math.min(playerCenterX - 8, bubbleX + bubbleWidth - 26));
+        Polygon tail = new Polygon(
+            new int[] {tailX, tailX + 16, tailX + 8},
+            new int[] {bubbleY + bubbleHeight - 2, bubbleY + bubbleHeight - 2, bubbleY + bubbleHeight + 14},
+            3
+        );
+        g.setColor(new Color(255, 255, 255, 235));
+        g.fillPolygon(tail);
+        g.setColor(new Color(40, 45, 55, 235));
+        g.drawPolygon(tail);
+
+        g.setColor(new Color(20, 26, 36));
+        int textY = bubbleY + 26;
+        for (String line : INTRO_SPEECH_LINES) {
+            g.drawString(line, bubbleX + 16, textY);
+            textY += lineHeight;
+        }
+        g.setFont(previousFont);
     }
 
     private void drawPollutionBar(Graphics2D g) {
@@ -619,6 +780,10 @@ public class PhaseOnePanel extends JPanel {
                 if (key == KeyEvent.VK_ENTER || key == KeyEvent.VK_E) {
                     closeTutorial();
                 }
+                return;
+            }
+
+            if (transportTransitionActive) {
                 return;
             }
 
