@@ -20,7 +20,6 @@ import java.util.List;
  */
 public class GamePanel extends JPanel {
     private static final boolean SHOW_PLATFORM_OVERLAYS = false;
-    private static final int PLAYER_SPRITE_HEIGHT = 60;
     private static final int PLAYER_ANIMATION_SPEED = 10;
     private static final Color PLAYER_BACKGROUND_KEY = new Color(247, 247, 247);
     private static final int PLAYER_BACKGROUND_TOLERANCE = 12;
@@ -161,13 +160,10 @@ public class GamePanel extends JPanel {
             currentFrame = playerFrames[(playerAnimationTick / PLAYER_ANIMATION_SPEED) % playerFrames.length];
         }
 
-        int spriteHeight = PLAYER_SPRITE_HEIGHT;
-        int spriteWidth = Math.max(
-            Constants.PLAYER_WIDTH,
-            Math.round((float) currentFrame.getWidth() * spriteHeight / currentFrame.getHeight())
-        );
-        int spriteX = Math.round(player.getX()) - (spriteWidth - Constants.PLAYER_WIDTH) / 2;
-        int spriteY = Math.round(player.getY()) + Constants.PLAYER_HEIGHT - spriteHeight;
+        int spriteWidth = Constants.PLAYER_WIDTH;
+        int spriteHeight = Constants.PLAYER_HEIGHT;
+        int spriteX = Math.round(player.getX());
+        int spriteY = Math.round(player.getY());
 
         Object previousInterpolation = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
