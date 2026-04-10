@@ -28,17 +28,32 @@ public class GamePanel extends JPanel {
     private final List<Platform> platforms;
     private final List<TrashItem> trashItems;
     private final KeyboardController keyboardController;
+<<<<<<< HEAD
     private final BufferedImage[] playerFrames;
     private boolean running = true;
     private int currentLevel = 1;
     private int playerAnimationTick = 0;
+=======
+    private final BufferedImage playerSpriteOne;
+    private final BufferedImage playerSpriteTwo;
+    private boolean running = true;
+    private int currentLevel = 1;
+    private int nextTeleportIndex = 0;
+    private int playerAnimationTick = 0;
+    private boolean useFirstSprite = true;
+>>>>>>> 7b6e9fa3662c2c5a93e714bee0a015dbde9248a1
 
     public GamePanel() {
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
         setFocusable(true);
 
         player = new Player(100, 300);
+<<<<<<< HEAD
         playerFrames = loadPlayerFrames();
+=======
+        playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
+        playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
+>>>>>>> 7b6e9fa3662c2c5a93e714bee0a015dbde9248a1
 
         trashItems = createTrashItems();
         platforms = createLevel(currentLevel);
@@ -105,7 +120,11 @@ public class GamePanel extends JPanel {
 
     private void update() {
         PhysicsEngine.update(player, platforms);
+<<<<<<< HEAD
         updatePlayerAnimation();
+=======
+        updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
+>>>>>>> 7b6e9fa3662c2c5a93e714bee0a015dbde9248a1
         collectTrashItems();
     }
 
@@ -150,6 +169,7 @@ public class GamePanel extends JPanel {
     }
 
     private void drawPlayer(Graphics2D g) {
+<<<<<<< HEAD
         if (playerFrames.length == 0) {
             drawFallbackPlayer(g);
             return;
@@ -181,17 +201,31 @@ public class GamePanel extends JPanel {
 
     private void drawFallbackPlayer(Graphics2D g) {
         Stroke previousStroke = g.getStroke();
+=======
+        BufferedImage currentSprite = useFirstSprite ? playerSpriteOne : playerSpriteTwo;
+        if (currentSprite != null) {
+            g.drawImage(
+                currentSprite,
+                (int) player.getX(),
+                (int) player.getY(),
+                Constants.PLAYER_WIDTH,
+                Constants.PLAYER_HEIGHT,
+                null
+            );
+            return;
+        }
+>>>>>>> 7b6e9fa3662c2c5a93e714bee0a015dbde9248a1
 
+        Stroke previousStroke = g.getStroke();
         g.setColor(new Color(255, 128, 0));
         g.fillRect((int) player.getX(), (int) player.getY(), Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);
-
         g.setColor(new Color(200, 100, 0));
         g.setStroke(new BasicStroke(2f));
         g.drawRect((int) player.getX(), (int) player.getY(), Constants.PLAYER_WIDTH, Constants.PLAYER_HEIGHT);
-
         g.setStroke(previousStroke);
     }
 
+<<<<<<< HEAD
     private void updatePlayerAnimation() {
         if (playerFrames.length <= 1 || !player.isMovingHorizontally()) {
             playerAnimationTick = 0;
@@ -300,6 +334,20 @@ public class GamePanel extends JPanel {
         );
         graphics.dispose();
         return cropped;
+=======
+    private void updatePlayerAnimation(boolean moving) {
+        if (!moving) {
+            playerAnimationTick = 0;
+            useFirstSprite = true;
+            return;
+        }
+
+        playerAnimationTick++;
+        if (playerAnimationTick >= 8) {
+            playerAnimationTick = 0;
+            useFirstSprite = !useFirstSprite;
+        }
+>>>>>>> 7b6e9fa3662c2c5a93e714bee0a015dbde9248a1
     }
 
     private void drawHUD(Graphics2D g) {
