@@ -22,6 +22,15 @@ import java.util.List;
 public class PhaseOnePanel extends JPanel {
     private static final int MARKER_TRIGGER_DISTANCE = 36;
     private static final int TRANSPORT_TRIGGER_DISTANCE = 145;
+    private static final int PHASE_ONE_GROUND_Y = Constants.GAME_HEIGHT - 56;
+    private static final int COFFEE_DECISION_X = 655;
+    private static final int COFFEE_TRIGGER_START_X = 560;
+    private static final int COFFEE_TRIGGER_END_X = 760;
+    private static final int COFFEE_HINT_Y = 270;
+    private static final int TAP_DECISION_X = 110;
+    private static final int TAP_TRIGGER_START_X = 24;
+    private static final int TAP_TRIGGER_END_X = 220;
+    private static final int TAP_HINT_Y = 300;
     private static final int POLLUTION_LIMIT = 100;
     private static final int BIKE_X = 460;
     private static final int CAR_X = 930;
@@ -30,12 +39,20 @@ public class PhaseOnePanel extends JPanel {
     private static final int BIKE_BASELINE_OFFSET = -22;
     private static final int CAR_WIDTH = 360;
     private static final int CAR_HEIGHT = 196;
+    private static final int CHILDREN_TARGET_HEIGHT = 225;
+    private static final int CHILDREN_X = 620;
+    private static final int CHILDREN_BOTTOM_OFFSET = 4;
     private static final int TRANSPORT_TRANSITION_MS = 1_600;
     private static final int INTRO_SPEECH_TOTAL_MS = 24_000;
+    private static final int COFFEE_GUIDE_SPEECH_TOTAL_MS = 12_000;
     private static final String[] INTRO_SPEECH_LINES = new String[] {
         "Se quero ver mudanca, preciso comecar por mim.",
         "Hora de sair e fazer a diferenca.",
         "Como vou me locomover?"
+    };
+    private static final String[] COFFEE_GUIDE_LINES = new String[] {
+        "Preciso me manter acordado, talvez um cafe me ajudaria neste momento.",
+        "Qual copo vou escolher?"
     };
 
     private final Runnable onPhaseCompleted;
@@ -47,22 +64,29 @@ public class PhaseOnePanel extends JPanel {
     private final JButton tutorialButton;
     private final BufferedImage phaseBackgroundStart;
     private final BufferedImage phaseBackgroundAfterTransport;
+    private final BufferedImage phaseBackgroundThree;
     private final BufferedImage playerSpriteOne;
     private final BufferedImage playerSpriteTwo;
+    private final BufferedImage childrenSprite;
     private final BufferedImage bikeSprite;
     private final BufferedImage carSprite;
 
     private boolean running = true;
     private int currentDecisionIndex = 0;
     private DecisionPoint activeDecision;
+    private DecisionPoint nearbyDecision;
     private TransportChoice nearbyTransport = TransportChoice.NONE;
     private TransportChoice activeTransportPrompt = TransportChoice.NONE;
     private TransportChoice transitionTransportChoice = TransportChoice.NONE;
     private boolean transportResolved = false;
     private boolean usingPostTransportScenario = false;
+    private boolean usingThirdScenario = false;
     private boolean transportTransitionActive = false;
     private boolean transportTransitionHalfReached = false;
     private long transportTransitionStartMs;
+    private boolean scenarioThreeTransitionActive = false;
+    private boolean scenarioThreeTransitionHalfReached = false;
+    private long scenarioThreeTransitionStartMs;
     private boolean gameOver = false;
     private int ecoScore = 0;
     private int pollutionLevel = 60;
@@ -70,7 +94,9 @@ public class PhaseOnePanel extends JPanel {
     private boolean useFirstSprite = true;
     private boolean showTutorial = true;
     private boolean showIntroSpeech = true;
+    private boolean showCoffeeGuideSpeech = false;
     private long introSpeechStartMs;
+    private long coffeeGuideSpeechStartMs;
 
     public PhaseOnePanel(Runnable onPhaseCompleted) {
         this.onPhaseCompleted = onPhaseCompleted;
@@ -82,8 +108,10 @@ public class PhaseOnePanel extends JPanel {
         player = new Player(245, 300);
         phaseBackgroundStart = ResourceLoader.loadImage("sprites/Fase1.png");
         phaseBackgroundAfterTransport = ResourceLoader.loadImage("sprites/CenarioFase1_2.png");
+        phaseBackgroundThree = ResourceLoader.loadImage("sprites/Fase1_3.png");
         playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
         playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
+        childrenSprite = ResourceLoader.loadImage("sprites/criancas.png");
         bikeSprite = ResourceLoader.loadImage("sprites/Bike.png");
         carSprite = ResourceLoader.loadImage("sprites/Carro.png");
         platforms = createPlatforms();
@@ -132,22 +160,41 @@ public class PhaseOnePanel extends JPanel {
         List<Platform> levelPlatforms = new ArrayList<>();
 
         // Keep only an invisible floor so movement physics still works.
-        levelPlatforms.add(new Platform(0, Constants.GAME_HEIGHT - 64, Constants.GAME_WIDTH, 64));
+        levelPlatforms.add(new Platform(0, PHASE_ONE_GROUND_Y, Constants.GAME_WIDTH, 64));
         return levelPlatforms;
     }
 
     private List<DecisionPoint> createDecisionPoints() {
         List<DecisionPoint> points = new ArrayList<>();
 
-        // Decision 2, 3 and 4 are disabled for now.
-        // Keep only decision 5 after transport interaction.
+        // Scenario 2: coffee shop decision.
         points.add(new DecisionPoint(
-            930,
-            "Espaco publico",
-            "Intervir na degradacao",
-            "Ignorar degradacao",
+            COFFEE_DECISION_X,
+            COFFEE_TRIGGER_START_X,
+            COFFEE_TRIGGER_END_X,
+            COFFEE_HINT_Y,
+            2,
+            "Loja Sao Joao (Takeaway Coffee)",
+            "Pegar copo sustentavel",
+            "Pegar copo descartavel",
             true,
-            5
+            2,
+            false
+        ));
+
+        // Scenario 3: leaking tap decision.
+        points.add(new DecisionPoint(
+            TAP_DECISION_X,
+            TAP_TRIGGER_START_X,
+            TAP_TRIGGER_END_X,
+            TAP_HINT_Y,
+            3,
+            "Torneira da rua",
+            "Fechar a torneira",
+            "Deixar a torneira aberta",
+            true,
+            3,
+            false
         ));
 
         return points;
@@ -182,7 +229,9 @@ public class PhaseOnePanel extends JPanel {
 
     private void update() {
         updateIntroSpeechState();
+        updateCoffeeGuideSpeechState();
         updateTransportTransition();
+        updateScenarioThreeTransition();
 
         tutorialButton.setVisible(showTutorial);
 
@@ -193,7 +242,7 @@ public class PhaseOnePanel extends JPanel {
             return;
         }
 
-        if (transportTransitionActive) {
+        if (transportTransitionActive || scenarioThreeTransitionActive) {
             player.stopMoving();
             updatePlayerAnimation(false);
             continueButton.setVisible(false);
@@ -208,7 +257,10 @@ public class PhaseOnePanel extends JPanel {
                 if (!transportResolved) {
                     updateNearbyTransport();
                 } else {
-                    checkDecisionTrigger();
+                    if (!usingThirdScenario) {
+                        updateScenarioThreeEntry();
+                    }
+                    updateNearbyDecision();
                 }
             } else {
                 player.stopMoving();
@@ -235,15 +287,59 @@ public class PhaseOnePanel extends JPanel {
             transportResolved = true;
             nearbyTransport = TransportChoice.NONE;
             showIntroSpeech = false;
+            showCoffeeGuideSpeech = true;
+            coffeeGuideSpeechStartMs = System.currentTimeMillis();
 
             // Enter the second scenario from the left side of the map.
             double spawnX = 28;
-            double spawnY = Constants.GAME_HEIGHT - 64 - Constants.PLAYER_HEIGHT;
+            double spawnY = PHASE_ONE_GROUND_Y - Constants.PLAYER_HEIGHT;
             player.teleportTo(spawnX, spawnY);
         }
 
         if (progress >= 1.0) {
             transportTransitionActive = false;
+        }
+    }
+
+    private void updateScenarioThreeEntry() {
+        if (!usingPostTransportScenario || usingThirdScenario || scenarioThreeTransitionActive) {
+            return;
+        }
+
+        // Move to scenario 3 right after resolving the coffee decision.
+        if (currentDecisionIndex < 1) {
+            return;
+        }
+
+        startScenarioThreeTransition();
+    }
+
+    private void startScenarioThreeTransition() {
+        scenarioThreeTransitionActive = true;
+        scenarioThreeTransitionHalfReached = false;
+        scenarioThreeTransitionStartMs = System.currentTimeMillis();
+    }
+
+    private void updateScenarioThreeTransition() {
+        if (!scenarioThreeTransitionActive) {
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - scenarioThreeTransitionStartMs;
+        double progress = Math.min(1.0, elapsed / (double) TRANSPORT_TRANSITION_MS);
+
+        if (!scenarioThreeTransitionHalfReached && progress >= 0.5) {
+            scenarioThreeTransitionHalfReached = true;
+            usingThirdScenario = true;
+            showCoffeeGuideSpeech = false;
+
+            double spawnX = 28;
+            double spawnY = PHASE_ONE_GROUND_Y - Constants.PLAYER_HEIGHT;
+            player.teleportTo(spawnX, spawnY);
+        }
+
+        if (progress >= 1.0) {
+            scenarioThreeTransitionActive = false;
         }
     }
 
@@ -255,6 +351,17 @@ public class PhaseOnePanel extends JPanel {
         long elapsed = System.currentTimeMillis() - introSpeechStartMs;
         if (elapsed >= INTRO_SPEECH_TOTAL_MS) {
             showIntroSpeech = false;
+        }
+    }
+
+    private void updateCoffeeGuideSpeechState() {
+        if (!showCoffeeGuideSpeech) {
+            return;
+        }
+
+        long elapsed = System.currentTimeMillis() - coffeeGuideSpeechStartMs;
+        if (elapsed >= COFFEE_GUIDE_SPEECH_TOTAL_MS) {
+            showCoffeeGuideSpeech = false;
         }
     }
 
@@ -291,18 +398,39 @@ public class PhaseOnePanel extends JPanel {
         player.stopMoving();
     }
 
-    private void checkDecisionTrigger() {
+    private void updateNearbyDecision() {
         if (currentDecisionIndex >= decisions.size()) {
+            nearbyDecision = null;
             return;
         }
 
         DecisionPoint point = decisions.get(currentDecisionIndex);
-        int playerCenterX = (int) player.getX() + (Constants.PLAYER_WIDTH / 2);
-
-        if (Math.abs(playerCenterX - point.markerX) <= MARKER_TRIGGER_DISTANCE) {
-            activeDecision = point;
-            player.stopMoving();
+        if (point.answered) {
+            nearbyDecision = null;
+            return;
         }
+
+        int currentScenario = usingThirdScenario ? 3 : 2;
+        if (point.requiredScenario != currentScenario) {
+            nearbyDecision = null;
+            return;
+        }
+
+        int playerLeftX = (int) player.getX();
+        int playerRightX = playerLeftX + Constants.PLAYER_WIDTH;
+
+        boolean isCrossingDecisionArea =
+            playerRightX >= point.triggerStartX && playerLeftX <= point.triggerEndX;
+        nearbyDecision = isCrossingDecisionArea ? point : null;
+    }
+
+    private void openDecisionPromptIfNearby() {
+        if (activeDecision != null || nearbyDecision == null || nearbyDecision.answered) {
+            return;
+        }
+
+        activeDecision = nearbyDecision;
+        player.stopMoving();
     }
 
     private void handleTransportSelection(boolean choose) {
@@ -389,11 +517,13 @@ public class PhaseOnePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         drawPhaseBackground(g2d);
+        drawChildrenOnRight(g2d);
         drawTransportObjects(g2d);
-        drawTransportKeyHint(g2d);
+        drawInteractionKeyHint(g2d);
         drawDecisionMarkers(g2d);
         drawPlayer(g2d);
         drawIntroSpeechBubble(g2d);
+        drawCoffeeGuideSpeechBubble(g2d);
         drawPollutionBar(g2d);
         drawHud(g2d);
 
@@ -417,6 +547,10 @@ public class PhaseOnePanel extends JPanel {
             drawTransportTransition(g2d);
         }
 
+        if (scenarioThreeTransitionActive) {
+            drawScenarioThreeTransition(g2d);
+        }
+
         if (showTutorial) {
             drawTutorialOverlay(g2d);
         }
@@ -436,12 +570,44 @@ public class PhaseOnePanel extends JPanel {
     }
 
     private void drawPhaseBackground(Graphics2D g) {
-        BufferedImage currentBackground = usingPostTransportScenario ? phaseBackgroundAfterTransport : phaseBackgroundStart;
+        BufferedImage currentBackground = phaseBackgroundStart;
+        if (usingThirdScenario) {
+            currentBackground = phaseBackgroundThree;
+        } else if (usingPostTransportScenario) {
+            currentBackground = phaseBackgroundAfterTransport;
+        }
+
         if (currentBackground != null) {
             g.drawImage(currentBackground, 0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT, null);
         } else {
             BackgroundRenderer.draw(g, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
         }
+    }
+
+    private void drawScenarioThreeTransition(Graphics2D g) {
+        long elapsed = System.currentTimeMillis() - scenarioThreeTransitionStartMs;
+        double progress = Math.min(1.0, elapsed / (double) TRANSPORT_TRANSITION_MS);
+
+        float alphaFactor = progress < 0.5
+            ? (float) (progress * 2.0)
+            : (float) ((1.0 - progress) * 2.0);
+
+        int alpha = Math.min(220, Math.max(0, (int) (255 * alphaFactor)));
+        g.setColor(new Color(0, 0, 0, alpha));
+        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+    }
+
+    private void drawChildrenOnRight(Graphics2D g) {
+        if (!usingThirdScenario || childrenSprite == null) {
+            return;
+        }
+
+        double aspectRatio = childrenSprite.getWidth() / (double) childrenSprite.getHeight();
+        int renderHeight = CHILDREN_TARGET_HEIGHT;
+        int renderWidth = (int) Math.round(renderHeight * aspectRatio);
+        int x = CHILDREN_X;
+        int y = PHASE_ONE_GROUND_Y - renderHeight - CHILDREN_BOTTOM_OFFSET;
+        g.drawImage(childrenSprite, x, y, renderWidth, renderHeight, null);
     }
 
     private void drawTransportObjects(Graphics2D g) {
@@ -451,7 +617,7 @@ public class PhaseOnePanel extends JPanel {
 
         int bikeX = BIKE_X - (BIKE_WIDTH / 2);
         int carX = CAR_X - (CAR_WIDTH / 2);
-        int groundY = Constants.GAME_HEIGHT - 64;
+        int groundY = PHASE_ONE_GROUND_Y;
         int bikeY = groundY - BIKE_HEIGHT + BIKE_BASELINE_OFFSET;
         int carY = groundY - CAR_HEIGHT;
 
@@ -474,16 +640,30 @@ public class PhaseOnePanel extends JPanel {
         }
     }
 
-    private void drawTransportKeyHint(Graphics2D g) {
-        if (transportResolved || activeTransportPrompt != TransportChoice.NONE || nearbyTransport == TransportChoice.NONE) {
+    private void drawInteractionKeyHint(Graphics2D g) {
+        if (activeTransportPrompt != TransportChoice.NONE || activeDecision != null) {
             return;
         }
 
-        int targetX = nearbyTransport == TransportChoice.BIKE ? BIKE_X : CAR_X;
-        int groundY = Constants.GAME_HEIGHT - 64;
-        int targetHeight = nearbyTransport == TransportChoice.BIKE ? BIKE_HEIGHT : CAR_HEIGHT;
+        Integer targetX = null;
+        Integer targetY = null;
+
+        if (!transportResolved && nearbyTransport != TransportChoice.NONE) {
+            int groundY = PHASE_ONE_GROUND_Y;
+            int targetHeight = nearbyTransport == TransportChoice.BIKE ? BIKE_HEIGHT : CAR_HEIGHT;
+            targetX = nearbyTransport == TransportChoice.BIKE ? BIKE_X : CAR_X;
+            targetY = groundY - targetHeight - 52;
+        } else if (transportResolved && nearbyDecision != null) {
+            targetX = nearbyDecision.markerX;
+            targetY = nearbyDecision.hintY;
+        }
+
+        if (targetX == null || targetY == null) {
+            return;
+        }
+
         int hintX = targetX - 18;
-        int hintY = groundY - targetHeight - 52;
+        int hintY = targetY;
 
         g.setColor(new Color(15, 20, 32, 220));
         g.fillRoundRect(hintX, hintY, 36, 36, 10, 10);
@@ -500,6 +680,10 @@ public class PhaseOnePanel extends JPanel {
 
         for (int i = 0; i < decisions.size(); i++) {
             DecisionPoint point = decisions.get(i);
+            if (!point.showMarker) {
+                continue;
+            }
+
             int x = point.markerX - 18;
             int y = Constants.GAME_HEIGHT - 110;
 
@@ -573,6 +757,65 @@ public class PhaseOnePanel extends JPanel {
         g.setColor(new Color(20, 26, 36));
         int textY = bubbleY + 26;
         for (String line : INTRO_SPEECH_LINES) {
+            g.drawString(line, bubbleX + 16, textY);
+            textY += lineHeight;
+        }
+        g.setFont(previousFont);
+    }
+
+    private void drawCoffeeGuideSpeechBubble(Graphics2D g) {
+        if (!showCoffeeGuideSpeech || COFFEE_GUIDE_LINES.length == 0) {
+            return;
+        }
+
+        Font previousFont = g.getFont();
+        g.setFont(new Font("Dialog", Font.BOLD, 18));
+        FontMetrics metrics = g.getFontMetrics();
+
+        int maxTextWidth = 0;
+        for (String line : COFFEE_GUIDE_LINES) {
+            maxTextWidth = Math.max(maxTextWidth, metrics.stringWidth(line));
+        }
+
+        int lineHeight = 24;
+        int bubbleWidth = maxTextWidth + 34;
+        int bubbleHeight = 26 + (COFFEE_GUIDE_LINES.length * lineHeight);
+
+        int playerCenterX = (int) player.getX() + (Constants.PLAYER_WIDTH / 2);
+        int bubbleX = playerCenterX - (bubbleWidth / 2);
+        int bubbleY = (int) player.getY() - 112;
+
+        int rightLimit = Constants.WINDOW_WIDTH - 68;
+        if (bubbleX < 12) {
+            bubbleX = 12;
+        }
+        if (bubbleX + bubbleWidth > rightLimit) {
+            bubbleX = rightLimit - bubbleWidth;
+        }
+        if (bubbleY < 12) {
+            bubbleY = 12;
+        }
+
+        g.setColor(new Color(255, 255, 255, 235));
+        g.fillRoundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 16, 16);
+        g.setColor(new Color(40, 45, 55, 235));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 16, 16);
+
+        int tailX = Math.max(bubbleX + 14, Math.min(playerCenterX - 8, bubbleX + bubbleWidth - 26));
+        Polygon tail = new Polygon(
+            new int[] {tailX, tailX + 16, tailX + 8},
+            new int[] {bubbleY + bubbleHeight - 2, bubbleY + bubbleHeight - 2, bubbleY + bubbleHeight + 14},
+            3
+        );
+        g.setColor(new Color(255, 255, 255, 235));
+        g.fillPolygon(tail);
+        g.setColor(new Color(40, 45, 55, 235));
+        g.drawPolygon(tail);
+
+        g.setColor(new Color(20, 26, 36));
+        int textY = bubbleY + 26;
+        for (String line : COFFEE_GUIDE_LINES) {
             g.drawString(line, bubbleX + 16, textY);
             textY += lineHeight;
         }
@@ -783,7 +1026,7 @@ public class PhaseOnePanel extends JPanel {
                 return;
             }
 
-            if (transportTransitionActive) {
+            if (transportTransitionActive || scenarioThreeTransitionActive) {
                 return;
             }
 
@@ -808,6 +1051,11 @@ public class PhaseOnePanel extends JPanel {
                 return;
             }
 
+            if (transportResolved && key == KeyEvent.VK_E) {
+                openDecisionPromptIfNearby();
+                return;
+            }
+
             if (activeDecision == null) {
                 return;
             }
@@ -823,29 +1071,44 @@ public class PhaseOnePanel extends JPanel {
 
     private static class DecisionPoint {
         private final int markerX;
+        private final int triggerStartX;
+        private final int triggerEndX;
+        private final int hintY;
+        private final int requiredScenario;
         private final String theme;
         private final String optionOne;
         private final String optionTwo;
         private final boolean optionOneSustainable;
         private final int displayOrder;
+        private final boolean showMarker;
 
         private boolean answered;
         private int chosenOption;
 
         private DecisionPoint(
             int markerX,
+            int triggerStartX,
+            int triggerEndX,
+            int hintY,
+            int requiredScenario,
             String theme,
             String optionOne,
             String optionTwo,
             boolean optionOneSustainable,
-            int displayOrder
+            int displayOrder,
+            boolean showMarker
         ) {
             this.markerX = markerX;
+            this.triggerStartX = triggerStartX;
+            this.triggerEndX = triggerEndX;
+            this.hintY = hintY;
+            this.requiredScenario = requiredScenario;
             this.theme = theme;
             this.optionOne = optionOne;
             this.optionTwo = optionTwo;
             this.optionOneSustainable = optionOneSustainable;
             this.displayOrder = displayOrder;
+            this.showMarker = showMarker;
             this.answered = false;
             this.chosenOption = 0;
         }
