@@ -55,29 +55,29 @@ public class IntroScenePanel extends JPanel {
     private List<SceneData> buildScenes() {
         List<SceneData> builtScenes = new ArrayList<>();
         builtScenes.add(new SceneData(
-            "Cena 1 - Visao da cidade",
+            "Fase 1 - Decisões urbanas",
             "sprites/Cena1Gemini.png",
             Arrays.asList(
-                "A cidade ja nao e mais como antes...",
-                "A poluicao tomou conta das ruas."
+                "A cidade ja não é como antes...",
+                "A poluição tomou conta das ruas."
             )
         ));
 
         builtScenes.add(new SceneData(
-            "Cena 2 - Problema ambiental",
+            "Fase 1 - Decisões urbanas",
             "sprites/Cena2Gemini.png",
             Arrays.asList(
-                "O lixo e descartado de forma incorreta...",
-                "E o ar esta cada vez mais dificil de respirar."
+                "O lixo é descartado de forma incorreta...",
+                "E o ar esta cada vez mais difícil de respirar."
             )
         ));
 
         builtScenes.add(new SceneData(
-            "Cena 3 - Personagem",
+            "Fase 1 - Decisões urbanas",
             "sprites/Cena3Gemini.png",
             Arrays.asList(
-                "Mas alguem decidiu nao ignorar isso.",
-                "Talvez pequenas atitudes possam fazer a diferenca..."
+                "Mas alguém decidiu não ignorar a situação.",
+                "Talvez pequenas atitudes possam fazer a diferença..."
             )
         ));
 

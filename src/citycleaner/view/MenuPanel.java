@@ -15,6 +15,7 @@ public class MenuPanel extends JPanel {
     private static final int BUTTON_WIDTH = 260;
     private static final int BUTTON_HEIGHT = 56;
     private static final int BUTTON_GAP = 18;
+    private static final int MENU_VERTICAL_OFFSET = 100;
 
     private final Runnable onStart;
     private final Runnable onExit;
@@ -56,8 +57,14 @@ public class MenuPanel extends JPanel {
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
+
         button.setFocusable(false);
         button.setFont(new Font("Dialog", Font.BOLD, 26));
+        button.setBackground(Color.WHITE);
+        button.setForeground(Color.BLACK);
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(true);
         return button;
     }
 
@@ -67,7 +74,11 @@ public class MenuPanel extends JPanel {
 
         int totalHeight = (BUTTON_HEIGHT * 3) + (BUTTON_GAP * 2);
         int startX = (getWidth() - BUTTON_WIDTH) / 2;
-        int startY = (getHeight() - totalHeight) / 2;
+        int startY = ((getHeight() - totalHeight) / 2) + MENU_VERTICAL_OFFSET;
+        int maxStartY = getHeight() - totalHeight - 28;
+        if (startY > maxStartY) {
+            startY = maxStartY;
+        }
 
         startButton.setBounds(startX, startY, BUTTON_WIDTH, BUTTON_HEIGHT);
         exitButton.setBounds(startX, startY + BUTTON_HEIGHT + BUTTON_GAP, BUTTON_WIDTH, BUTTON_HEIGHT);

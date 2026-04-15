@@ -51,28 +51,28 @@ public class PhaseOnePanel extends JPanel {
     private static final int BIKE_BASELINE_OFFSET = -22;
     private static final int CAR_WIDTH = 360;
     private static final int CAR_HEIGHT = 196;
+    private static final int TRANSPORT_CARD_GAP = 36;
     private static final int CHILDREN_TARGET_HEIGHT = 225;
     private static final int CHILDREN_X = 620;
     private static final int CHILDREN_BOTTOM_OFFSET = 4;
     private static final String[] CHILDREN_BUBBLE_ONE = new String[] {
-        "Joga no chao mesmo.",
-        "Ninguem liga!"
+        "Joga no chão mesmo.",
+        "Ninguém liga!"
     };
     private static final String[] CHILDREN_BUBBLE_TWO = new String[] {
-        "Deixa ai no lixo.",
+        "Deixa ai no chão.",
         "Depois a gente sai."
     };
     private static final int TRANSPORT_TRANSITION_MS = 1_600;
     private static final int INTRO_SPEECH_TOTAL_MS = 24_000;
     private static final int COFFEE_GUIDE_SPEECH_TOTAL_MS = 12_000;
     private static final String[] INTRO_SPEECH_LINES = new String[] {
-        "Se quero ver mudanca, preciso comecar por mim.",
-        "Hora de sair e fazer a diferenca.",
+        "Se quero ver mudanca, preciso começar por mim.",
+        "Hora de sair e fazer a diferença!.",
         "Como vou me locomover?"
     };
     private static final String[] COFFEE_GUIDE_LINES = new String[] {
-        "Preciso me manter acordado, talvez um cafe me ajudaria neste momento.",
-        "Qual copo vou escolher?"
+        "Preciso me manter acordado, talvez um café me ajudaria neste momento.",
     };
     private static final int TAP_REMINDER_SPEECH_TOTAL_MS = 7_500;
     private static final String[] TAP_REMINDER_LINES = new String[] {
@@ -80,7 +80,7 @@ public class PhaseOnePanel extends JPanel {
     };
     private static final int SCENARIO_FOUR_GUIDE_SPEECH_TOTAL_MS = 9_000;
     private static final String[] SCENARIO_FOUR_GUIDE_LINES = new String[] {
-        "Parece que tem alguem cortando algumas arvores!",
+        "Alguém está cortando algumas árvores!",
         "Precisamos chegar perto para checar melhor."
     };
 
@@ -100,6 +100,12 @@ public class PhaseOnePanel extends JPanel {
     private final BufferedImage childrenSprite;
     private final BufferedImage bikeSprite;
     private final BufferedImage carSprite;
+    private final BufferedImage bikeChoiceCardSprite;
+    private final BufferedImage carChoiceCardSprite;
+    private final BufferedImage sustainableCupChoiceCardSprite;
+    private final BufferedImage disposableCupChoiceCardSprite;
+    private final BufferedImage interveneChoiceCardSprite;
+    private final BufferedImage leaveChoiceCardSprite;
 
     private boolean running = true;
     private int currentDecisionIndex = 0;
@@ -163,6 +169,12 @@ public class PhaseOnePanel extends JPanel {
         childrenSprite = ResourceLoader.loadImage("sprites/criancas.png");
         bikeSprite = ResourceLoader.loadImage("sprites/Bike.png");
         carSprite = ResourceLoader.loadImage("sprites/Carro.png");
+        bikeChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaBike.png");
+        carChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCarro.png");
+        sustainableCupChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCopoSustentavel.png");
+        disposableCupChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCopoDescartavel.png");
+        interveneChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaIntervir.png");
+        leaveChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaDeixar.png");
         platforms = createPlatforms();
         decisions = createDecisionPoints();
         introSpeechStartMs = System.currentTimeMillis();
@@ -224,8 +236,8 @@ public class PhaseOnePanel extends JPanel {
             COFFEE_HINT_Y,
             2,
             "Loja Sao Joao (Takeaway Coffee)",
-            "Pegar copo sustentavel",
-            "Pegar copo descartavel",
+            "Pegar copo sustentável",
+            "Pegar copo descartável",
             true,
             2,
             false
@@ -255,7 +267,7 @@ public class PhaseOnePanel extends JPanel {
             3,
             "Grupo de criancas",
             "Intervir e conscientizar",
-            "Deixar pra la",
+            "Deixar pra lá",
             true,
             4,
             false
@@ -814,22 +826,24 @@ public class PhaseOnePanel extends JPanel {
         drawChildrenOnRight(g2d);
         drawChildrenTrashBubbles(g2d);
         drawTransportObjects(g2d);
-        drawInteractionKeyHint(g2d);
-        drawDecisionMarkers(g2d);
         drawPlayer(g2d);
-        drawIntroSpeechBubble(g2d);
-        drawCoffeeGuideSpeechBubble(g2d);
-        drawTapReminderSpeechBubble(g2d);
-        drawScenarioFourGuideSpeechBubble(g2d);
-        drawTreeDecisionOverlay(g2d);
+        if (!showTutorial) {
+            drawInteractionKeyHint(g2d);
+            drawDecisionMarkers(g2d);
+            drawIntroSpeechBubble(g2d);
+            drawCoffeeGuideSpeechBubble(g2d);
+            drawTapReminderSpeechBubble(g2d);
+            drawScenarioFourGuideSpeechBubble(g2d);
+            drawTreeDecisionOverlay(g2d);
+        }
         drawPollutionBar(g2d);
         drawHud(g2d);
 
-        if (activeDecision != null) {
+        if (!showTutorial && activeDecision != null) {
             drawDecisionOverlay(g2d, activeDecision);
         }
 
-        if (activeTransportPrompt != TransportChoice.NONE) {
+        if (!showTutorial && activeTransportPrompt != TransportChoice.NONE) {
             drawTransportOverlay(g2d);
         }
 
@@ -1386,13 +1400,13 @@ public class PhaseOnePanel extends JPanel {
         if (treeDecisionStage == TreeDecisionStage.ALERT) {
             g.drawString("Aja rapido!", boxX + 24, boxY + 58);
             g.setFont(new Font("Dialog", Font.PLAIN, 24));
-            g.drawString("Um homem esta cortando a arvore.", boxX + 24, boxY + 112);
+            g.drawString("Um homem esta cortando a árvore.", boxX + 24, boxY + 112);
             g.drawString("Prepare-se para decidir...", boxX + 24, boxY + 152);
             return;
         }
 
         int secondsLeft = Math.max(0, (int) Math.ceil((treeDecisionDeadlineMs - System.currentTimeMillis()) / 1000.0));
-        g.drawString("Corte ilegal de arvore", boxX + 24, boxY + 52);
+        g.drawString("Corte ilegal de árvore", boxX + 24, boxY + 52);
 
         g.setFont(new Font("Dialog", Font.BOLD, 22));
         g.setColor(new Color(255, 224, 130));
@@ -1402,9 +1416,22 @@ public class PhaseOnePanel extends JPanel {
         g.setFont(new Font("Dialog", Font.PLAIN, 23));
         if (treeDecisionStage == TreeDecisionStage.PRIMARY) {
             g.drawString("1) Intervir", boxX + 24, boxY + 112);
-            g.drawString("2) Deixar pra la", boxX + 24, boxY + 152);
+
+            if (leaveChoiceCardSprite != null) {
+                g.setFont(new Font("Dialog", Font.BOLD, 24));
+                g.drawString("2", boxX + 290, boxY + 124);
+
+                int leaveX = boxX + 320;
+                int leaveY = boxY + 86;
+                int leaveW = boxW - 344;
+                int leaveH = 96;
+                drawCardImageContain(g, leaveChoiceCardSprite, leaveX, leaveY, leaveW, leaveH);
+            } else {
+                g.setFont(new Font("Dialog", Font.PLAIN, 23));
+                g.drawString("2) Deixar pra lá", boxX + 24, boxY + 152);
+            }
         } else {
-            g.drawString("1) Denunciar para orgao ambiental", boxX + 24, boxY + 112);
+            g.drawString("1) Denunciar para o Órgão Ambiental", boxX + 24, boxY + 112);
             g.drawString("2) Intervir conversando com o homem", boxX + 24, boxY + 152);
         }
 
@@ -1482,22 +1509,28 @@ public class PhaseOnePanel extends JPanel {
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.BOLD, 22));
-        g.drawString("FASE 1 - DECISOES URBANAS", 20, Constants.GAME_HEIGHT + 30);
+        g.drawString("FASE 1 - DECISÕES URBANAS", 20, Constants.GAME_HEIGHT + 30);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 18));
         int totalSteps = decisions.size() + 1;
         int completedSteps = currentDecisionIndex + (transportResolved ? 1 : 0);
         g.drawString("Progresso: " + completedSteps + "/" + totalSteps, 20, Constants.GAME_HEIGHT + 55);
         g.drawString("Eco score: " + ecoScore, 280, Constants.GAME_HEIGHT + 55);
-        g.drawString("Poluicao: " + pollutionLevel + "%", 460, Constants.GAME_HEIGHT + 55);
-        g.drawString("Mova-se com A/D ou setas", 690, Constants.GAME_HEIGHT + 55);
+        g.drawString("Poluição: " + pollutionLevel + "%", 460, Constants.GAME_HEIGHT + 55);
     }
 
     private void drawDecisionOverlay(Graphics2D g, DecisionPoint decision) {
+        boolean showCoffeeCards = isCoffeeDecision(decision)
+            && sustainableCupChoiceCardSprite != null
+            && disposableCupChoiceCardSprite != null;
+        boolean showChildrenCards = isChildrenDecision(decision)
+            && interveneChoiceCardSprite != null
+            && leaveChoiceCardSprite != null;
+        boolean showLeaveCard = isLeaveChoiceLabel(decision.optionTwo) && leaveChoiceCardSprite != null;
         int boxX = 120;
         int boxY = 140;
         int boxW = Constants.WINDOW_WIDTH - 240;
-        int boxH = 230;
+        int boxH = showChildrenCards ? 430 : (showCoffeeCards ? 350 : (showLeaveCard ? 272 : 230));
 
         g.setColor(new Color(20, 24, 38, 225));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 22, 22);
@@ -1509,20 +1542,88 @@ public class PhaseOnePanel extends JPanel {
         g.setFont(new Font("Dialog", Font.BOLD, 30));
         g.drawString(decision.theme, boxX + 24, boxY + 46);
 
+        if (showCoffeeCards) {
+            int optionY = boxY + 72;
+            int optionH = 220;
+            int optionsStartX = boxX + 42;
+            int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+            int firstOptionX = optionsStartX;
+            int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
+
+            int firstCardX = firstOptionX + 8;
+            int secondCardX = secondOptionX + 8;
+            int cardsY = optionY + 42;
+            int cardDrawW = optionW - 16;
+            int cardDrawH = optionH - 54;
+
+            drawCardImage(g, sustainableCupChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImage(g, disposableCupChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
+
+            g.setFont(new Font("Dialog", Font.BOLD, 28));
+            g.setColor(Color.WHITE);
+            g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 32);
+            g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 32);
+
+            g.setFont(new Font("Dialog", Font.PLAIN, 19));
+            g.setColor(new Color(220, 228, 255));
+            g.drawString("Escolha com as teclas 1 ou 2.", boxX + 24, boxY + boxH - 22);
+            return;
+        }
+
+        if (showChildrenCards) {
+            int optionY = boxY + 72;
+            int optionH = 300;
+            int optionsStartX = boxX + 42;
+            int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+            int firstOptionX = optionsStartX;
+            int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
+
+            int firstCardX = firstOptionX + 8;
+            int secondCardX = secondOptionX + 8;
+            int cardsY = optionY + 42;
+            int cardDrawW = optionW - 16;
+            int cardDrawH = optionH - 54;
+
+            drawCardImageContain(g, interveneChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImageContain(g, leaveChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
+
+            g.setFont(new Font("Dialog", Font.BOLD, 28));
+            g.setColor(Color.WHITE);
+            g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 32);
+            g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 32);
+
+            g.setFont(new Font("Dialog", Font.PLAIN, 19));
+            g.setColor(new Color(220, 228, 255));
+            g.drawString("Escolha com as teclas 1 ou 2.", boxX + 24, boxY + boxH - 22);
+            return;
+        }
+
         g.setFont(new Font("Dialog", Font.PLAIN, 23));
         g.drawString("1) " + decision.optionOne, boxX + 24, boxY + 104);
-        g.drawString("2) " + decision.optionTwo, boxX + 24, boxY + 146);
+
+        if (showLeaveCard) {
+            g.setFont(new Font("Dialog", Font.BOLD, 24));
+            g.drawString("2", boxX + 24, boxY + 178);
+
+            int leaveX = boxX + 84;
+            int leaveY = boxY + 122;
+            int leaveW = boxW - 112;
+            int leaveH = 106;
+            drawCardImageContain(g, leaveChoiceCardSprite, leaveX, leaveY, leaveW, leaveH);
+        } else {
+            g.drawString("2) " + decision.optionTwo, boxX + 24, boxY + 146);
+        }
 
         g.setFont(new Font("Dialog", Font.PLAIN, 19));
         g.setColor(new Color(220, 228, 255));
-        g.drawString("Escolha com as teclas 1 ou 2.", boxX + 24, boxY + 192);
+        g.drawString("Escolha com as teclas 1 ou 2.", boxX + 24, showLeaveCard ? boxY + 242 : boxY + 192);
     }
 
     private void drawTransportOverlay(Graphics2D g) {
-        int boxX = 120;
-        int boxY = 140;
-        int boxW = Constants.WINDOW_WIDTH - 240;
-        int boxH = 230;
+        int boxW = 760;
+        int boxH = 460;
+        int boxX = (Constants.WINDOW_WIDTH - boxW) / 2;
+        int boxY = 80;
 
         g.setColor(new Color(20, 24, 38, 225));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 22, 22);
@@ -1533,17 +1634,84 @@ public class PhaseOnePanel extends JPanel {
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.BOLD, 30));
         boolean bikePrompt = activeTransportPrompt == TransportChoice.BIKE;
-        g.drawString(bikePrompt ? "Escolher andar de bicicleta?" : "Escolher ir de carro?", boxX + 24, boxY + 46);
-
-        g.setFont(new Font("Dialog", Font.PLAIN, 23));
-        g.drawString(bikePrompt ? "1) Escolher andar de bicicleta" : "1) Escolher ir de carro", boxX + 24, boxY + 104);
-        g.drawString("2) Deixar pra la", boxX + 24, boxY + 146);
+        g.drawString("Locomoção consciente", boxX + 24, boxY + 52);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 19));
         g.setColor(new Color(220, 228, 255));
-        g.drawString("Escolha com 1 ou 2. Fora do menu, aproxime e aperte E.", boxX + 24, boxY + 192);
+        g.drawString("Escolher a forma de locomover e uma decisão que você pode realizar", boxX + 24, boxY + 82);
+        g.drawString("para ajudar no combate a poluição.", boxX + 24, boxY + 106);
+
+        int optionY = boxY + 118;
+        int optionH = 300;
+        int optionsStartX = boxX + 42;
+        int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+        int firstOptionX = optionsStartX;
+        int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
+
+        int firstCardX = firstOptionX + 8;
+        int secondCardX = secondOptionX + 8;
+        int cardsY = optionY + 52;
+        int cardDrawW = optionW - 16;
+        int cardDrawH = optionH - 62;
+
+        BufferedImage transportChoiceCardSprite = bikePrompt ? bikeChoiceCardSprite : carChoiceCardSprite;
+        if (transportChoiceCardSprite != null && leaveChoiceCardSprite != null) {
+            drawCardImage(g, transportChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImage(g, leaveChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
+        } else {
+            g.setColor(new Color(37, 45, 72));
+            g.fillRoundRect(firstCardX, cardsY, cardDrawW, cardDrawH, 18, 18);
+            g.fillRoundRect(secondCardX, cardsY, cardDrawW, cardDrawH, 18, 18);
+            g.setColor(new Color(215, 225, 255));
+            g.drawRoundRect(firstCardX, cardsY, cardDrawW, cardDrawH, 18, 18);
+            g.drawRoundRect(secondCardX, cardsY, cardDrawW, cardDrawH, 18, 18);
+        }
+
+        g.setFont(new Font("Dialog", Font.BOLD, 28));
+        g.setColor(Color.WHITE);
+        g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 38);
+        g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 38);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 19));
+        g.setColor(new Color(220, 228, 255));
+        g.drawString("Escolha com 1 ou 2. Fora do menu, aproxime e aperte E.", boxX + 24, boxY + boxH - 24);
     }
 
+    private void drawCardImage(Graphics2D g, BufferedImage cardSprite, int cardX, int cardY, int cardW, int cardH) {
+        // Fill the whole choice area so cards look large, cropping overflow if needed.
+        Shape oldClip = g.getClip();
+        g.setClip(cardX, cardY, cardW, cardH);
+
+        double scale = Math.max(cardW / (double) cardSprite.getWidth(), cardH / (double) cardSprite.getHeight());
+        int drawW = (int) Math.round(cardSprite.getWidth() * scale);
+        int drawH = (int) Math.round(cardSprite.getHeight() * scale);
+        int drawX = cardX + ((cardW - drawW) / 2);
+        int drawY = cardY + ((cardH - drawH) / 2);
+
+        g.drawImage(cardSprite, drawX, drawY, drawW, drawH, null);
+        g.setClip(oldClip);
+    }
+
+    private void drawCardImageContain(Graphics2D g, BufferedImage cardSprite, int cardX, int cardY, int cardW, int cardH) {
+        double scale = Math.min(cardW / (double) cardSprite.getWidth(), cardH / (double) cardSprite.getHeight());
+        int drawW = (int) Math.round(cardSprite.getWidth() * scale);
+        int drawH = (int) Math.round(cardSprite.getHeight() * scale);
+        int drawX = cardX + ((cardW - drawW) / 2);
+        int drawY = cardY + ((cardH - drawH) / 2);
+        g.drawImage(cardSprite, drawX, drawY, drawW, drawH, null);
+    }
+
+    private boolean isLeaveChoiceLabel(String label) {
+        return label != null && "Deixar pra lá".equalsIgnoreCase(label.trim());
+    }
+
+    private boolean isCoffeeDecision(DecisionPoint decision) {
+        return decision != null && "Loja Sao Joao (Takeaway Coffee)".equals(decision.theme);
+    }
+
+    private boolean isChildrenDecision(DecisionPoint decision) {
+        return decision != null && "Grupo de criancas".equals(decision.theme);
+    }
     private void drawPhaseCompleteOverlay(Graphics2D g) {
         g.setColor(new Color(0, 0, 0, 245));
         g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
@@ -1553,18 +1721,18 @@ public class PhaseOnePanel extends JPanel {
         g.drawString("Fase 1 Finalizada!", 360, 180);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 30));
-        g.drawString("Porcentagem de poluicao: " + pollutionLevel + "%", 285, 250);
+        g.drawString("Porcentagem de poluição: " + pollutionLevel + "%", 285, 250);
 
         if (usedConversationIntervention) {
             g.setFont(new Font("Dialog", Font.PLAIN, 22));
             g.setColor(new Color(235, 222, 160));
-            g.drawString("Conversar com o homem nao e tao efetivo...", 255, 320);
+            g.drawString("Conversar com o homem não e tão efetivo...", 255, 320);
             g.drawString("Repensa e veja melhores maneiras como denunciar o caso.", 190, 355);
         }
 
         g.setColor(new Color(210, 220, 240));
         g.setFont(new Font("Dialog", Font.PLAIN, 20));
-        g.drawString("Clique no botao para continuar.", 430, 430);
+        g.drawString("Clique no botão para continuar.", 430, 430);
     }
 
     private void drawGameOverOverlay(Graphics2D g) {
@@ -1576,8 +1744,8 @@ public class PhaseOnePanel extends JPanel {
         g.drawString("GAME OVER", 410, 220);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 24));
-        g.drawString("A poluicao atingiu o limite de " + POLLUTION_LIMIT + "%.", 320, 270);
-        g.drawString("Tente escolhas mais sustentaveis na proxima tentativa.", 260, 308);
+        g.drawString("A poluição atingiu o limite de " + POLLUTION_LIMIT + "%.", 320, 270);
+        g.drawString("Tente escolhas mais sustentáveis na próxima tentativa.", 260, 308);
     }
 
     private void drawTutorialOverlay(Graphics2D g) {
@@ -1597,19 +1765,15 @@ public class PhaseOnePanel extends JPanel {
         g.drawString("Como jogar", boxX + 24, boxY + 46);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 21));
-        g.drawString("Movimento:", boxX + 24, boxY + 88);
+        g.drawString("Movimentação:", boxX + 24, boxY + 88);
         g.drawString("- A e D para andar", boxX + 40, boxY + 120);
-        g.drawString("- W (ou ESPACO) para pular", boxX + 40, boxY + 150);
+        g.drawString("- W para pular", boxX + 40, boxY + 150);
+        g.drawString("- E para interagir", boxX + 40, boxY + 180);
 
-        g.drawString("Decisoes:", boxX + 24, boxY + 198);
-        g.drawString("- Aproxime-se da bicicleta ou do carro", boxX + 40, boxY + 230);
-        g.drawString("- Quando aparecer o botao E, aperte E para abrir as opcoes", boxX + 40, boxY + 260);
-        g.drawString("- Pressione 1 para escolher e 2 para deixar pra la", boxX + 40, boxY + 290);
-
-        g.drawString("Barra de poluicao (lado direito):", boxX + 24, boxY + 338);
-        g.drawString("- Bicicleta reduz 10% da poluicao", boxX + 40, boxY + 370);
-        g.drawString("- Carro aumenta 10% da poluicao", boxX + 40, boxY + 400);
-        g.drawString("- Se chegar a 100%, e GAME OVER", boxX + 40, boxY + 430);
+        g.drawString("Dica:", boxX + 24, boxY + 235);
+        g.drawString("Preste atenção nos diálogos e na barra de poluição", boxX + 40, boxY + 270);
+        g.drawString("do lado direito para que possa concluir a fase", boxX + 40, boxY + 300);
+        g.drawString("com sucesso!", boxX + 40, boxY + 330);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 18));
         g.setColor(new Color(210, 220, 240));
