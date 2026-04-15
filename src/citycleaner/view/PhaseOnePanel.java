@@ -159,7 +159,8 @@ public class PhaseOnePanel extends JPanel {
         setFocusable(true);
         setLayout(null);
 
-        player = new Player(245, 300);
+        // Keep initial spawn aligned with the same ground reference used in transitions.
+        player = new Player(245, PHASE_ONE_GROUND_Y - Constants.PLAYER_HEIGHT);
         phaseBackgroundStart = ResourceLoader.loadImage("sprites/Fase1.png");
         phaseBackgroundAfterTransport = ResourceLoader.loadImage("sprites/CenarioFase1_2.png");
         phaseBackgroundThree = ResourceLoader.loadImage("sprites/Fase1_3.png");
@@ -1530,7 +1531,7 @@ public class PhaseOnePanel extends JPanel {
         int boxX = 120;
         int boxY = 140;
         int boxW = Constants.WINDOW_WIDTH - 240;
-        int boxH = showChildrenCards ? 430 : (showCoffeeCards ? 350 : (showLeaveCard ? 272 : 230));
+        int boxH = (showCoffeeCards || showChildrenCards) ? 350 : (showLeaveCard ? 272 : 230);
 
         g.setColor(new Color(20, 24, 38, 225));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 22, 22);
@@ -1543,7 +1544,12 @@ public class PhaseOnePanel extends JPanel {
         g.drawString(decision.theme, boxX + 24, boxY + 46);
 
         if (showCoffeeCards) {
-            int optionY = boxY + 72;
+            g.setFont(new Font("Dialog", Font.PLAIN, 19));
+            g.setColor(new Color(220, 228, 255));
+            g.drawString("Consumir de forma consciente e considerar o tipo", boxX + 24, boxY + 78);
+            g.drawString("de embalagem do produto.", boxX + 24, boxY + 102);
+
+            int optionY = boxY + 114;
             int optionH = 220;
             int optionsStartX = boxX + 42;
             int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
@@ -1572,7 +1578,7 @@ public class PhaseOnePanel extends JPanel {
 
         if (showChildrenCards) {
             int optionY = boxY + 72;
-            int optionH = 300;
+            int optionH = 220;
             int optionsStartX = boxX + 42;
             int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
             int firstOptionX = optionsStartX;
@@ -1723,16 +1729,22 @@ public class PhaseOnePanel extends JPanel {
         g.setFont(new Font("Dialog", Font.PLAIN, 30));
         g.drawString("Porcentagem de poluição: " + pollutionLevel + "%", 285, 250);
 
-        if (usedConversationIntervention) {
-            g.setFont(new Font("Dialog", Font.PLAIN, 22));
-            g.setColor(new Color(235, 222, 160));
-            g.drawString("Conversar com o homem não e tão efetivo...", 255, 320);
-            g.drawString("Repensa e veja melhores maneiras como denunciar o caso.", 190, 355);
-        }
+        g.setFont(new Font("Dialog", Font.PLAIN, 22));
+        g.setColor(new Color(235, 222, 160));
+        String lineOne = "Você pode realizar decisões pequenas no cotidiano";
+        String lineTwo = "que podem mudar drasticamente o meio ambiente.";
+        String lineThree = "Por isso, pense e aja de forma consciente!";
+        FontMetrics messageMetrics = g.getFontMetrics();
+        int messageCenterX = Constants.WINDOW_WIDTH / 2;
+        g.drawString(lineOne, messageCenterX - (messageMetrics.stringWidth(lineOne) / 2), 320);
+        g.drawString(lineTwo, messageCenterX - (messageMetrics.stringWidth(lineTwo) / 2), 355);
+        g.drawString(lineThree, messageCenterX - (messageMetrics.stringWidth(lineThree) / 2), 390);
 
         g.setColor(new Color(210, 220, 240));
         g.setFont(new Font("Dialog", Font.PLAIN, 20));
-        g.drawString("Clique no botão para continuar.", 430, 430);
+        String continueHint = "Clique no botão para continuar.";
+        FontMetrics hintMetrics = g.getFontMetrics();
+        g.drawString(continueHint, (Constants.WINDOW_WIDTH - hintMetrics.stringWidth(continueHint)) / 2, 430);
     }
 
     private void drawGameOverOverlay(Graphics2D g) {
