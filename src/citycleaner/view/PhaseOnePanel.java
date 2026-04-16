@@ -104,8 +104,12 @@ public class PhaseOnePanel extends JPanel {
     private final BufferedImage carChoiceCardSprite;
     private final BufferedImage sustainableCupChoiceCardSprite;
     private final BufferedImage disposableCupChoiceCardSprite;
+    private final BufferedImage keepTapClosedChoiceCardSprite;
+    private final BufferedImage tapOpenChoiceCardSprite;
     private final BufferedImage interveneChoiceCardSprite;
     private final BufferedImage leaveChoiceCardSprite;
+    private final BufferedImage interveneConversingChoiceCardSprite;
+    private final BufferedImage environmentalAgencyChoiceCardSprite;
 
     private boolean running = true;
     private int currentDecisionIndex = 0;
@@ -174,8 +178,12 @@ public class PhaseOnePanel extends JPanel {
         carChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCarro.png");
         sustainableCupChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCopoSustentavel.png");
         disposableCupChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaCopoDescartavel.png");
+        keepTapClosedChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaManterFechado.png");
+        tapOpenChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaTorneiraAberta.png");
         interveneChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaIntervir.png");
         leaveChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaDeixar.png");
+        interveneConversingChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaIntervirConversando.png");
+        environmentalAgencyChoiceCardSprite = ResourceLoader.loadImage("sprites/EscolhaOrgaoAmb.png");
         platforms = createPlatforms();
         decisions = createDecisionPoints();
         introSpeechStartMs = System.currentTimeMillis();
@@ -1384,10 +1392,16 @@ public class PhaseOnePanel extends JPanel {
             return;
         }
 
+        boolean showPrimaryCards = treeDecisionStage == TreeDecisionStage.PRIMARY
+            && interveneChoiceCardSprite != null
+            && leaveChoiceCardSprite != null;
+        boolean showInterveneDetailCards = treeDecisionStage == TreeDecisionStage.INTERVENE_DETAIL
+            && interveneConversingChoiceCardSprite != null
+            && environmentalAgencyChoiceCardSprite != null;
         int boxX = 120;
         int boxY = 140;
         int boxW = Constants.WINDOW_WIDTH - 240;
-        int boxH = 230;
+        int boxH = showInterveneDetailCards ? 340 : (showPrimaryCards ? 320 : 230);
 
         g.setColor(new Color(20, 24, 38, 225));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 22, 22);
@@ -1416,29 +1430,92 @@ public class PhaseOnePanel extends JPanel {
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.PLAIN, 23));
         if (treeDecisionStage == TreeDecisionStage.PRIMARY) {
-            g.drawString("1) Intervir", boxX + 24, boxY + 112);
+            if (showPrimaryCards) {
+                int optionY = boxY + 76;
+                int optionH = 206;
+                int optionsStartX = boxX + 42;
+                int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+                int firstOptionX = optionsStartX;
+                int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
 
-            if (leaveChoiceCardSprite != null) {
-                g.setFont(new Font("Dialog", Font.BOLD, 24));
-                g.drawString("2", boxX + 290, boxY + 124);
+                int firstCardX = firstOptionX + 6;
+                int secondCardX = secondOptionX + 6;
+                int cardsY = optionY + 36;
+                int cardDrawW = optionW - 12;
+                int cardDrawH = optionH - 46;
 
-                int leaveX = boxX + 320;
-                int leaveY = boxY + 86;
-                int leaveW = boxW - 344;
-                int leaveH = 96;
-                drawCardImageContain(g, leaveChoiceCardSprite, leaveX, leaveY, leaveW, leaveH);
+                drawCardImageContainVisibleArea(
+                    g,
+                    interveneChoiceCardSprite,
+                    firstCardX,
+                    cardsY,
+                    cardDrawW,
+                    cardDrawH
+                );
+                drawCardImageContainVisibleArea(
+                    g,
+                    leaveChoiceCardSprite,
+                    secondCardX,
+                    cardsY,
+                    cardDrawW,
+                    cardDrawH
+                );
+
+                g.setFont(new Font("Dialog", Font.BOLD, 28));
+                g.setColor(Color.WHITE);
+                g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 28);
+                g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 28);
             } else {
+                g.drawString("1) Intervir", boxX + 24, boxY + 112);
                 g.setFont(new Font("Dialog", Font.PLAIN, 23));
                 g.drawString("2) Deixar pra lá", boxX + 24, boxY + 152);
             }
         } else {
-            g.drawString("1) Denunciar para o Órgão Ambiental", boxX + 24, boxY + 112);
-            g.drawString("2) Intervir conversando com o homem", boxX + 24, boxY + 152);
+            if (showInterveneDetailCards) {
+                int optionY = boxY + 78;
+                int optionH = 220;
+                int optionsStartX = boxX + 42;
+                int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+                int firstOptionX = optionsStartX;
+                int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
+
+                int firstCardX = firstOptionX + 4;
+                int secondCardX = secondOptionX + 4;
+                int cardsY = optionY + 34;
+                int cardDrawW = optionW - 8;
+                int cardDrawH = optionH - 46;
+
+                drawCardImageContainVisibleArea(
+                    g,
+                    environmentalAgencyChoiceCardSprite,
+                    firstCardX,
+                    cardsY,
+                    cardDrawW,
+                    cardDrawH
+                );
+                drawCardImageContainVisibleArea(
+                    g,
+                    interveneConversingChoiceCardSprite,
+                    secondCardX,
+                    cardsY,
+                    cardDrawW,
+                    cardDrawH
+                );
+
+                g.setFont(new Font("Dialog", Font.BOLD, 28));
+                g.setColor(Color.WHITE);
+                g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 30);
+                g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 30);
+            } else {
+                g.drawString("1) Denunciar para o Órgão Ambiental", boxX + 24, boxY + 112);
+                g.drawString("2) Intervir conversando com o homem", boxX + 24, boxY + 152);
+            }
         }
 
         g.setFont(new Font("Dialog", Font.PLAIN, 19));
         g.setColor(new Color(220, 228, 255));
-        g.drawString("Use 1 ou 2 para escolher antes do tempo acabar.", boxX + 24, boxY + 198);
+        int helpY = showInterveneDetailCards ? boxY + 312 : (showPrimaryCards ? boxY + 286 : boxY + 198);
+        g.drawString("Use 1 ou 2 para escolher antes do tempo acabar.", boxX + 24, helpY);
     }
 
     private void drawPollutionBar(Graphics2D g) {
@@ -1524,6 +1601,9 @@ public class PhaseOnePanel extends JPanel {
         boolean showCoffeeCards = isCoffeeDecision(decision)
             && sustainableCupChoiceCardSprite != null
             && disposableCupChoiceCardSprite != null;
+        boolean showTapCards = isTapDecision(decision)
+            && keepTapClosedChoiceCardSprite != null
+            && tapOpenChoiceCardSprite != null;
         boolean showChildrenCards = isChildrenDecision(decision)
             && interveneChoiceCardSprite != null
             && leaveChoiceCardSprite != null;
@@ -1531,7 +1611,7 @@ public class PhaseOnePanel extends JPanel {
         int boxX = 120;
         int boxY = 140;
         int boxW = Constants.WINDOW_WIDTH - 240;
-        int boxH = (showCoffeeCards || showChildrenCards) ? 350 : (showLeaveCard ? 272 : 230);
+        int boxH = (showCoffeeCards || showTapCards || showChildrenCards) ? 350 : (showLeaveCard ? 272 : 230);
 
         g.setColor(new Color(20, 24, 38, 225));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 22, 22);
@@ -1576,7 +1656,7 @@ public class PhaseOnePanel extends JPanel {
             return;
         }
 
-        if (showChildrenCards) {
+        if (showTapCards) {
             int optionY = boxY + 72;
             int optionH = 220;
             int optionsStartX = boxX + 42;
@@ -1590,8 +1670,40 @@ public class PhaseOnePanel extends JPanel {
             int cardDrawW = optionW - 16;
             int cardDrawH = optionH - 54;
 
-            drawCardImageContain(g, interveneChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
-            drawCardImageContain(g, leaveChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImage(g, keepTapClosedChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImage(g, tapOpenChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
+
+            g.setFont(new Font("Dialog", Font.BOLD, 28));
+            g.setColor(Color.WHITE);
+            g.drawString("1", firstOptionX + (optionW / 2) - 8, optionY + 32);
+            g.drawString("2", secondOptionX + (optionW / 2) - 8, optionY + 32);
+
+            g.setFont(new Font("Dialog", Font.PLAIN, 19));
+            g.setColor(new Color(220, 228, 255));
+            g.drawString("Escolha com as teclas 1 ou 2.", boxX + 24, boxY + boxH - 22);
+            return;
+        }
+
+        if (showChildrenCards) {
+            g.setFont(new Font("Dialog", Font.PLAIN, 19));
+            g.setColor(new Color(220, 228, 255));
+            g.drawString("Educar e o primeiro passo para a mudança", boxX + 24, boxY + 82);
+
+            int optionY = boxY + 102;
+            int optionH = 232;
+            int optionsStartX = boxX + 42;
+            int optionW = (boxW - 84 - TRANSPORT_CARD_GAP) / 2;
+            int firstOptionX = optionsStartX;
+            int secondOptionX = optionsStartX + optionW + TRANSPORT_CARD_GAP;
+
+            int firstCardX = firstOptionX + 10;
+            int secondCardX = secondOptionX + 10;
+            int cardsY = optionY + 40;
+            int cardDrawW = optionW - 20;
+            int cardDrawH = optionH - 58;
+
+            drawCardImageContainVisibleArea(g, interveneChoiceCardSprite, firstCardX, cardsY, cardDrawW, cardDrawH);
+            drawCardImageContainVisibleArea(g, leaveChoiceCardSprite, secondCardX, cardsY, cardDrawW, cardDrawH);
 
             g.setFont(new Font("Dialog", Font.BOLD, 28));
             g.setColor(Color.WHITE);
@@ -1707,12 +1819,62 @@ public class PhaseOnePanel extends JPanel {
         g.drawImage(cardSprite, drawX, drawY, drawW, drawH, null);
     }
 
+    private void drawCardImageContainVisibleArea(Graphics2D g, BufferedImage cardSprite, int cardX, int cardY, int cardW, int cardH) {
+        int minX = cardSprite.getWidth();
+        int minY = cardSprite.getHeight();
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < cardSprite.getHeight(); y++) {
+            for (int x = 0; x < cardSprite.getWidth(); x++) {
+                int alpha = (cardSprite.getRGB(x, y) >>> 24) & 0xFF;
+                if (alpha <= 8) {
+                    continue;
+                }
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            drawCardImageContain(g, cardSprite, cardX, cardY, cardW, cardH);
+            return;
+        }
+
+        int srcW = maxX - minX + 1;
+        int srcH = maxY - minY + 1;
+        double scale = Math.min(cardW / (double) srcW, cardH / (double) srcH);
+        int drawW = (int) Math.round(srcW * scale);
+        int drawH = (int) Math.round(srcH * scale);
+        int drawX = cardX + ((cardW - drawW) / 2);
+        int drawY = cardY + ((cardH - drawH) / 2);
+
+        g.drawImage(
+            cardSprite,
+            drawX,
+            drawY,
+            drawX + drawW,
+            drawY + drawH,
+            minX,
+            minY,
+            maxX + 1,
+            maxY + 1,
+            null
+        );
+    }
+
     private boolean isLeaveChoiceLabel(String label) {
         return label != null && "Deixar pra lá".equalsIgnoreCase(label.trim());
     }
 
     private boolean isCoffeeDecision(DecisionPoint decision) {
         return decision != null && "Loja Sao Joao (Takeaway Coffee)".equals(decision.theme);
+    }
+
+    private boolean isTapDecision(DecisionPoint decision) {
+        return decision != null && "Torneira da rua".equals(decision.theme);
     }
 
     private boolean isChildrenDecision(DecisionPoint decision) {
@@ -1724,10 +1886,15 @@ public class PhaseOnePanel extends JPanel {
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.BOLD, 42));
-        g.drawString("Fase 1 Finalizada!", 360, 180);
+        int centerX = Constants.WINDOW_WIDTH / 2;
+        String title = "Fase 1 Finalizada!";
+        FontMetrics titleMetrics = g.getFontMetrics();
+        g.drawString(title, centerX - (titleMetrics.stringWidth(title) / 2), 180);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 30));
-        g.drawString("Porcentagem de poluição: " + pollutionLevel + "%", 285, 250);
+        String pollutionText = "Porcentagem de poluição: " + pollutionLevel + "%";
+        FontMetrics pollutionMetrics = g.getFontMetrics();
+        g.drawString(pollutionText, centerX - (pollutionMetrics.stringWidth(pollutionText) / 2), 250);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 22));
         g.setColor(new Color(235, 222, 160));
@@ -1735,16 +1902,15 @@ public class PhaseOnePanel extends JPanel {
         String lineTwo = "que podem mudar drasticamente o meio ambiente.";
         String lineThree = "Por isso, pense e aja de forma consciente!";
         FontMetrics messageMetrics = g.getFontMetrics();
-        int messageCenterX = Constants.WINDOW_WIDTH / 2;
-        g.drawString(lineOne, messageCenterX - (messageMetrics.stringWidth(lineOne) / 2), 320);
-        g.drawString(lineTwo, messageCenterX - (messageMetrics.stringWidth(lineTwo) / 2), 355);
-        g.drawString(lineThree, messageCenterX - (messageMetrics.stringWidth(lineThree) / 2), 390);
+        g.drawString(lineOne, centerX - (messageMetrics.stringWidth(lineOne) / 2), 320);
+        g.drawString(lineTwo, centerX - (messageMetrics.stringWidth(lineTwo) / 2), 355);
+        g.drawString(lineThree, centerX - (messageMetrics.stringWidth(lineThree) / 2), 390);
 
         g.setColor(new Color(210, 220, 240));
         g.setFont(new Font("Dialog", Font.PLAIN, 20));
         String continueHint = "Clique no botão para continuar.";
         FontMetrics hintMetrics = g.getFontMetrics();
-        g.drawString(continueHint, (Constants.WINDOW_WIDTH - hintMetrics.stringWidth(continueHint)) / 2, 430);
+        g.drawString(continueHint, centerX - (hintMetrics.stringWidth(continueHint) / 2), 430);
     }
 
     private void drawGameOverOverlay(Graphics2D g) {
