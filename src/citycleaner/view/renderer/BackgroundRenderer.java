@@ -21,8 +21,8 @@ public class BackgroundRenderer {
      * rendering game entities so the image stays behind everything.
      */
     public static void draw(Graphics2D g2, int width, int height) {
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 
         // If image not yet loaded, attempt to load now and log result.
         if (backgroundImage == null) {

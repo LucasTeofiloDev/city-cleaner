@@ -81,7 +81,7 @@ public class PhaseOnePanel extends JPanel {
 
         player = new Player(245, 300);
         phaseBackgroundStart = ResourceLoader.loadImage("sprites/Fase1.png");
-        phaseBackgroundAfterTransport = ResourceLoader.loadImage("sprites/CenarioFase1_2.png");
+        phaseBackgroundAfterTransport = ResourceLoader.loadImage("sprites/Fase2New.png");
         playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
         playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
         bikeSprite = ResourceLoader.loadImage("sprites/Bike.png");

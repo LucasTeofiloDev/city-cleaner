@@ -19,16 +19,21 @@ import java.util.List;
  * Painel principal do jogo: renderizacao e game loop.
  */
 public class GamePanel extends JPanel {
+    private static final int PLAYER_START_X = 250;
+    private static final int SIDEWALK_PLATFORM_Y = 456;
+    private static final int SIDEWALK_PLATFORM_HEIGHT = Constants.GAME_HEIGHT - SIDEWALK_PLATFORM_Y;
+    private static final int PLAYER_SPRITE_DRAW_OFFSET_Y = 0;
+    private static final int POLLUTION_LEVEL = 70;
+    private static final String HUD_PHASE_NAME = "FASE 2 - COLETA URBANA";
+
     private final Player player;
     private final List<Platform> platforms;
-    private final List<Point> teleportMarkers;
     private final List<TrashItem> trashItems;
     private final KeyboardController keyboardController;
     private final BufferedImage playerSpriteOne;
     private final BufferedImage playerSpriteTwo;
     private boolean running = true;
     private int currentLevel = 1;
-    private int nextTeleportIndex = 0;
     private int playerAnimationTick = 0;
     private boolean useFirstSprite = true;
 
@@ -36,39 +41,30 @@ public class GamePanel extends JPanel {
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
         setFocusable(true);
 
-        player = new Player(100, 300);
+        // Spawn the player directly on the sidewalk plane.
+        player = new Player(PLAYER_START_X, SIDEWALK_PLATFORM_Y - Constants.PLAYER_HEIGHT);
         playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
         playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
 
-        teleportMarkers = createTeleportMarkers();
         trashItems = createTrashItems();
         platforms = createLevel(currentLevel);
 
-        keyboardController = new KeyboardController(player, this::teleportToNextMarker);
+        keyboardController = new KeyboardController(player);
         addKeyListener(keyboardController);
 
         startGameLoop();
     }
 
-    private List<Point> createTeleportMarkers() {
-        List<Point> markers = new ArrayList<>();
-
-        // Pontos definidos manualmente com base no print enviado pelo usuario.
-        markers.add(new Point(246, 324)); // sacolinha branca ao lado da lixeira
-        markers.add(new Point(348, 232)); // plataforma da casinha
-        markers.add(new Point(864, 232)); // plataforma superior direita
-        markers.add(new Point(764, 292)); // plataforma direita do meio
-        markers.add(new Point(514, 362)); // plataforma central
-        markers.add(new Point(264, 432)); // plataforma inferior esquerda
-
-        return markers;
-    }
-
     private List<TrashItem> createTrashItems() {
         List<TrashItem> items = new ArrayList<>();
 
-        // O unico lixo real da cena fica na sacolinha branca apontada no print 2.
-        items.add(new TrashItem(246, 324, 18, Constants.POINTS_ITEM));
+        // Keep collectible zones only on visible sidewalk clutter.
+        items.add(new TrashItem(120, 436, 18, Constants.POINTS_ITEM));
+        items.add(new TrashItem(270, 438, 20, Constants.POINTS_ITEM));
+        items.add(new TrashItem(470, 430, 20, Constants.POINTS_ITEM));
+        items.add(new TrashItem(628, 430, 20, Constants.POINTS_ITEM));
+        items.add(new TrashItem(882, 434, 20, Constants.POINTS_ITEM));
+        items.add(new TrashItem(1088, 432, 18, Constants.POINTS_ITEM));
 
         return items;
     }
@@ -77,15 +73,10 @@ public class GamePanel extends JPanel {
         List<Platform> levelPlatforms = new ArrayList<>();
 
         if (level == 1) {
-            for (int i = 0; i < Constants.GAME_WIDTH; i += 64) {
-                levelPlatforms.add(new Platform(i, Constants.GAME_HEIGHT - 64, 64, 64));
-            }
+            // Only keep a single collision plane aligned with the visible sidewalk.
+            levelPlatforms.add(new Platform(0, SIDEWALK_PLATFORM_Y, Constants.GAME_WIDTH, SIDEWALK_PLATFORM_HEIGHT));
 
-            levelPlatforms.add(new Platform(200, 450, 128, 32));
-            levelPlatforms.add(new Platform(450, 380, 128, 32));
-            levelPlatforms.add(new Platform(700, 310, 128, 32));
-            levelPlatforms.add(new Platform(300, 250, 96, 32));
-            levelPlatforms.add(new Platform(800, 250, 128, 32));
+            // Elevated platforms were removed from both gameplay and the scene art.
         }
 
         return levelPlatforms;
@@ -124,18 +115,6 @@ public class GamePanel extends JPanel {
         collectTrashItems();
     }
 
-    private void teleportToNextMarker() {
-        if (teleportMarkers.isEmpty()) {
-            return;
-        }
-
-        Point target = teleportMarkers.get(nextTeleportIndex);
-        player.teleportTo(target.x - (Constants.PLAYER_WIDTH / 2), target.y - Constants.PLAYER_HEIGHT);
-        nextTeleportIndex = (nextTeleportIndex + 1) % teleportMarkers.size();
-        collectTrashItems();
-        repaint();
-    }
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -143,60 +122,28 @@ public class GamePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         BackgroundRenderer.draw(g2d, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
-        drawPlatforms(g2d);
-        drawTeleportMarkers(g2d);
         drawPlayer(g2d);
+        drawPollutionBar(g2d);
         drawHUD(g2d);
     }
 
-    private void drawPlatforms(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
-        g.setColor(new Color(139, 69, 19));
-
-        for (Platform platform : platforms) {
-            g.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
-
-            g.setColor(new Color(101, 50, 15));
-            g.setStroke(new BasicStroke(2f));
-            g.drawRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
-            g.setColor(new Color(139, 69, 19));
-        }
-
-        g.setStroke(previousStroke);
-    }
-
-    private void drawTeleportMarkers(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
-
-        for (int i = 0; i < teleportMarkers.size(); i++) {
-            Point marker = teleportMarkers.get(i);
-            int radius = i == nextTeleportIndex ? 24 : 22;
-            int diameter = radius * 2;
-            int x = marker.x - radius;
-            int y = marker.y - radius;
-
-            g.setColor(new Color(255, 0, 0, i == nextTeleportIndex ? 90 : 60));
-            g.fillOval(x, y, diameter, diameter);
-
-            g.setColor(new Color(220, 20, 20, 220));
-            g.setStroke(new BasicStroke(i == nextTeleportIndex ? 4f : 3f));
-            g.drawOval(x, y, diameter, diameter);
-            g.drawLine(marker.x - 6, marker.y - 6, marker.x + 6, marker.y + 6);
-            g.drawLine(marker.x - 6, marker.y + 6, marker.x + 6, marker.y - 6);
-        }
-
-        g.setStroke(previousStroke);
-    }
-
     private void collectTrashItems() {
-        Rectangle playerBounds = player.getBounds();
+        Rectangle playerBounds = getCollectionBounds();
 
         for (TrashItem trashItem : trashItems) {
-            if (trashItem.isNear(playerBounds, 28)) {
+            if (trashItem.isNear(playerBounds, 12)) {
                 trashItem.collect();
                 player.collectItem(trashItem.getPoints());
             }
         }
+    }
+
+    private Rectangle getCollectionBounds() {
+        int collectionX = (int) player.getX() + 48;
+        int collectionY = (int) player.getY() + 110;
+        int collectionWidth = 68;
+        int collectionHeight = 110;
+        return new Rectangle(collectionX, collectionY, collectionWidth, collectionHeight);
     }
 
     private void drawPlayer(Graphics2D g) {
@@ -236,23 +183,52 @@ public class GamePanel extends JPanel {
         }
     }
 
+    private void drawPollutionBar(Graphics2D g) {
+        int barWidth = 44;
+        int barHeight = Constants.GAME_HEIGHT - 86;
+        int barX = Constants.WINDOW_WIDTH - 58;
+        int barY = 26;
+
+        g.setColor(new Color(16, 18, 28, 210));
+        g.fillRoundRect(barX, barY, barWidth, barHeight, 14, 14);
+
+        int fillHeight = (int) (barHeight * (POLLUTION_LEVEL / 100.0));
+        int fillY = barY + barHeight - fillHeight;
+
+        g.setColor(new Color(236, 196, 68));
+        g.fillRoundRect(barX + 5, fillY + 5, barWidth - 10, Math.max(0, fillHeight - 10), 10, 10);
+
+        g.setColor(new Color(235, 235, 240));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(barX, barY, barWidth, barHeight, 14, 14);
+
+        g.setFont(new Font("Dialog", Font.BOLD, 14));
+        g.drawString("P", barX + 15, barY - 8);
+        g.drawString(POLLUTION_LEVEL + "%", barX - 2, barY + barHeight + 18);
+    }
+
+    private int countCollectedTrashItems() {
+        int collectedItems = 0;
+        for (TrashItem trashItem : trashItems) {
+            if (trashItem.isCollected()) {
+                collectedItems++;
+            }
+        }
+        return collectedItems;
+    }
+
     private void drawHUD(Graphics2D g) {
         g.setColor(new Color(Constants.COLOR_HUD));
         g.fillRect(0, Constants.GAME_HEIGHT, Constants.WINDOW_WIDTH, Constants.HUD_HEIGHT);
 
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 24));
+        g.setFont(new Font("Dialog", Font.BOLD, 22));
+        g.drawString(HUD_PHASE_NAME, 20, Constants.GAME_HEIGHT + 30);
 
-        String scoreText = "SCORE: " + player.getScore();
-        g.drawString(scoreText, 20, Constants.GAME_HEIGHT + 45);
-
-        String livesText = "LIVES: " + player.getLives();
-        g.drawString(livesText, Constants.WINDOW_WIDTH / 2 - 50, Constants.GAME_HEIGHT + 45);
-
-        String levelText = "LEVEL " + currentLevel;
-        g.drawString(levelText, Constants.WINDOW_WIDTH - 200, Constants.GAME_HEIGHT + 45);
-
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        g.drawString("T ou E = teleporta para o proximo ponto", 20, Constants.GAME_HEIGHT + 66);
+        g.setFont(new Font("Dialog", Font.PLAIN, 18));
+        g.drawString("Progresso: " + countCollectedTrashItems() + "/" + trashItems.size(), 20, Constants.GAME_HEIGHT + 55);
+        g.drawString("Eco score: " + player.getScore(), 280, Constants.GAME_HEIGHT + 55);
+        g.drawString("Poluicao: " + POLLUTION_LEVEL + "%", 460, Constants.GAME_HEIGHT + 55);
+        g.drawString("Mova-se com A/D ou setas", 690, Constants.GAME_HEIGHT + 55);
     }
 }

@@ -75,13 +75,25 @@ public class ResourceLoader {
      */
     public static BufferedImage loadBackgroundImage() {
         String[] backgroundCandidates = new String[] {
-            // New background requested for the game scene.
+            // Stage 2 should always prioritize the current scene art.
+            "sprites/Fase2New.png",
+            "resources/sprites/Fase2New.png",
+            "images/Fase2New.png",
+            "resources/images/Fase2New.png",
+
+            // Previous phase 2 background kept as fallback.
+            "sprites/Fase2.png",
+            "resources/sprites/Fase2.png",
+            "images/Fase2.png",
+            "resources/images/Fase2.png",
+
+            // Legacy background paths kept as fallback.
             "sprites/backgroundNew.png",
             "resources/sprites/backgroundNew.png",
             "images/backgroundNew.png",
             "resources/images/backgroundNew.png",
 
-            // Legacy background paths kept as fallback.
+            // Older background paths kept as additional fallback.
             "images/background.png",
             "sprites/background.png",
             "resources/sprites/background.png"

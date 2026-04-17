@@ -9,6 +9,8 @@ import java.awt.Rectangle;
 public class Player {
     private float x;
     private float y;
+    private final float spawnX;
+    private final float spawnY;
     private float velX = 0;
     private float velY = 0;
     private int lives;
@@ -22,6 +24,8 @@ public class Player {
     public Player(float startX, float startY) {
         this.x = startX;
         this.y = startY;
+        this.spawnX = startX;
+        this.spawnY = startY;
         this.lives = Constants.MAX_LIVES;
         this.score = 0;
     }
@@ -86,8 +90,8 @@ public class Player {
     }
     
     public void respawn() {
-        x = 100;
-        y = 200;
+        x = spawnX;
+        y = spawnY;
         velX = 0;
         velY = 0;
         onGround = false;
