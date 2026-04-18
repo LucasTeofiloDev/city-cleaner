@@ -15,6 +15,7 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Fase 1: jogador se movimenta e toma decisoes de sustentabilidade.
@@ -84,7 +85,7 @@ public class PhaseOnePanel extends JPanel {
         "Precisamos chegar perto para checar melhor."
     };
 
-    private final Runnable onPhaseCompleted;
+    private final Consumer<PhaseOneResult> onPhaseCompleted;
     private final Player player;
     private final List<Platform> platforms;
     private final List<DecisionPoint> decisions;
@@ -157,6 +158,10 @@ public class PhaseOnePanel extends JPanel {
     private long finalScreenTransitionStartMs;
 
     public PhaseOnePanel(Runnable onPhaseCompleted) {
+        this(result -> onPhaseCompleted.run());
+    }
+
+    public PhaseOnePanel(Consumer<PhaseOneResult> onPhaseCompleted) {
         this.onPhaseCompleted = onPhaseCompleted;
 
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
@@ -196,7 +201,7 @@ public class PhaseOnePanel extends JPanel {
         continueButton.setFont(new Font("Dialog", Font.BOLD, 20));
         continueButton.setFocusable(false);
         continueButton.setVisible(false);
-        continueButton.addActionListener(e -> this.onPhaseCompleted.run());
+        continueButton.addActionListener(e -> this.onPhaseCompleted.accept(buildPhaseOneResult()));
         add(continueButton);
 
         tutorialButton = new JButton("Entendi");
@@ -823,6 +828,14 @@ public class PhaseOnePanel extends JPanel {
 
     private boolean isPhaseComplete() {
         return showingFinalScreen;
+    }
+
+    private PhaseOneResult buildPhaseOneResult() {
+        int totalSteps = decisions.size() + 1;
+        int completedSteps = currentDecisionIndex + (transportResolved ? 1 : 0);
+        completedSteps = Math.max(0, Math.min(totalSteps, completedSteps));
+
+        return new PhaseOneResult(completedSteps, totalSteps, ecoScore, pollutionLevel);
     }
 
     @Override
@@ -2087,5 +2100,35 @@ public class PhaseOnePanel extends JPanel {
         ALERT,
         PRIMARY,
         INTERVENE_DETAIL
+    }
+
+    public static final class PhaseOneResult {
+        private final int completedSteps;
+        private final int totalSteps;
+        private final int ecoScore;
+        private final int pollutionLevel;
+
+        private PhaseOneResult(int completedSteps, int totalSteps, int ecoScore, int pollutionLevel) {
+            this.completedSteps = completedSteps;
+            this.totalSteps = totalSteps;
+            this.ecoScore = ecoScore;
+            this.pollutionLevel = pollutionLevel;
+        }
+
+        public int getCompletedSteps() {
+            return completedSteps;
+        }
+
+        public int getTotalSteps() {
+            return totalSteps;
+        }
+
+        public int getEcoScore() {
+            return ecoScore;
+        }
+
+        public int getPollutionLevel() {
+            return pollutionLevel;
+        }
     }
 }
