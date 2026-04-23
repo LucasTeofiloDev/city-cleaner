@@ -9,7 +9,7 @@ import javax.swing.*;
  */
 public class MainWindow extends JFrame {
     private int phaseOneFinalPollutionLevel = 60;
-    private int phaseOneFinalEcoScore = 0;
+    private int phaseOneFinalScore = 0;
     private int phaseOneCompletedSteps = 0;
     private int phaseOneTotalSteps = 4;
     
@@ -52,13 +52,13 @@ public class MainWindow extends JFrame {
 
     private void startGame(PhaseOnePanel.PhaseOneResult result) {
         phaseOneFinalPollutionLevel = result.getPollutionLevel();
-        phaseOneFinalEcoScore = result.getEcoScore();
+        phaseOneFinalScore = result.getEcoScore();
         phaseOneCompletedSteps = result.getCompletedSteps();
         phaseOneTotalSteps = result.getTotalSteps();
 
         GamePanel gamePanel = new GamePanel(
             phaseOneFinalPollutionLevel,
-            phaseOneFinalEcoScore,
+            phaseOneFinalScore,
             phaseOneCompletedSteps,
             phaseOneTotalSteps
         );
