@@ -1347,7 +1347,7 @@ public class PhaseOnePanel extends JPanel {
         }
 
         Font previousFont = g.getFont();
-        g.setFont(new Font("Dialog", Font.BOLD, 18));
+        g.setFont(new Font("Dialog", Font.BOLD, 16));
         FontMetrics metrics = g.getFontMetrics();
 
         int maxTextWidth = 0;
@@ -1355,7 +1355,7 @@ public class PhaseOnePanel extends JPanel {
             maxTextWidth = Math.max(maxTextWidth, metrics.stringWidth(line));
         }
 
-        int lineHeight = 24;
+        int lineHeight = 20;
         int bubbleWidth = maxTextWidth + 34;
         int bubbleHeight = 26 + (SCENARIO_FOUR_GUIDE_LINES.length * lineHeight);
 

@@ -76,6 +76,12 @@ public class ResourceLoader {
     public static BufferedImage loadBackgroundImage() {
         String[] backgroundCandidates = new String[] {
             // New background requested for the game scene.
+            "sprites/fase2.png",
+            "resources/sprites/fase2.png",
+            "images/fase2.png",
+            "resources/images/fase2.png",
+
+            // Previous phase background kept as fallback.
             "sprites/FaseTwo.png",
             "resources/sprites/FaseTwo.png",
             "images/FaseTwo.png",
