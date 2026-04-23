@@ -22,6 +22,7 @@ import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -35,6 +36,14 @@ import java.util.List;
 public class GamePanel extends JPanel {
     private static final long PHASE_DURATION_MS = 20_000L;
     private static final long RESULT_OVERLAY_MS = 3_600L;
+    private static final long GOOD_ENDING_SCENE_DURATION_MS = 3_000L;
+    private static final String GOOD_ENDING_STORY_TEXT =
+        "Transformação não acontece da noite para o dia, mas cada escolha sua limpou um pouco mais o horizonte. "
+            + "Seu exemplo ecoou, provando que grandes mudanças começam com pequenas atitudes conscientes.";
+    private static final String[] BAD_ENDING_STORY_TEXTS = new String[] {
+        "O horizonte que poderia ser azul tornou-se um adeus cinzento. A oportunidade de mudar foi perdida, e agora o futuro é apenas um eco do que deixamos de cuidar.",
+        "O silêncio agora é preenchido pelo som das chamas. Suas decisões ignoraram os sinais, e o que restou foi uma cidade sufocada pelo próprio descaso."
+    };
     private static final int GOOD_ENDING_POLLUTION_THRESHOLD = 60;
     private static final int BIN_X = 530;
     private static final int BIN_Y = 356;
@@ -48,8 +57,8 @@ public class GamePanel extends JPanel {
     private final BufferedImage playerSpriteTwo;
     private final BufferedImage trashSprite;
     private final BufferedImage binSprite;
-    private final BufferedImage goodEndingSceneSprite;
-    private final BufferedImage badEndingSceneSprite;
+    private final BufferedImage[] goodEndingStorySprites;
+    private final BufferedImage[] badEndingStorySprites;
     private final int phaseOneScore;
     private final int pollutionLevel;
     private final JButton startPhaseButton;
@@ -95,8 +104,16 @@ public class GamePanel extends JPanel {
             loadedBinSprite = ResourceLoader.loadImage("sprites/latao.png");
         }
         binSprite = loadedBinSprite;
-        goodEndingSceneSprite = ResourceLoader.loadImage("sprites/Cena1Gemini.png");
-        badEndingSceneSprite = ResourceLoader.loadImage("sprites/CenaFinalRuim.jpg");
+        goodEndingStorySprites = new BufferedImage[] {
+            ResourceLoader.loadImage("sprites/Cena1Gemini.png"),
+            ResourceLoader.loadImage("sprites/CenaFinal1.png"),
+            ResourceLoader.loadImage("sprites/CenaFinal2.png"),
+            ResourceLoader.loadImage("sprites/CenaFinal3.png")
+        };
+        badEndingStorySprites = new BufferedImage[] {
+            ResourceLoader.loadImage("sprites/CenaFinalRuim.jpg"),
+            ResourceLoader.loadImage("sprites/CenaFinalRuim2.png")
+        };
 
         platforms = createLevel(currentLevel);
 
@@ -209,6 +226,7 @@ public class GamePanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        boolean endingSceneVisible = phaseTwoController.isPhaseFinished() && isEndingSceneVisible();
 
         BackgroundRenderer.draw(g2d, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
         drawBinArea(g2d);
@@ -217,8 +235,10 @@ public class GamePanel extends JPanel {
         drawPlayer(g2d);
         drawCountdown(g2d);
         drawPhaseScore(g2d);
-        drawPollutionBar(g2d);
-        drawHUD(g2d);
+        if (!endingSceneVisible) {
+            drawPollutionBar(g2d);
+            drawHUD(g2d);
+        }
 
         if (phaseTwoController.isScoreFeedbackVisible()) {
             drawScoreFeedback(g2d);
@@ -254,6 +274,26 @@ public class GamePanel extends JPanel {
         return elapsed >= RESULT_OVERLAY_MS;
     }
 
+    private int getGoodEndingSceneIndex() {
+        if (phaseFinishedAtMs < 0L) {
+            return 0;
+        }
+
+        long elapsedAfterResult = Math.max(0L, System.currentTimeMillis() - phaseFinishedAtMs - RESULT_OVERLAY_MS);
+        int sceneIndex = (int) (elapsedAfterResult / GOOD_ENDING_SCENE_DURATION_MS);
+        return Math.min(Math.max(0, sceneIndex), goodEndingStorySprites.length - 1);
+    }
+
+    private int getBadEndingSceneIndex() {
+        if (phaseFinishedAtMs < 0L) {
+            return 0;
+        }
+
+        long elapsedAfterResult = Math.max(0L, System.currentTimeMillis() - phaseFinishedAtMs - RESULT_OVERLAY_MS);
+        int sceneIndex = (int) (elapsedAfterResult / GOOD_ENDING_SCENE_DURATION_MS);
+        return Math.min(Math.max(0, sceneIndex), badEndingStorySprites.length - 1);
+    }
+
     private void drawBinArea(Graphics2D g) {
         Rectangle bin = phaseTwoController.getBinBounds();
 
@@ -284,29 +324,57 @@ public class GamePanel extends JPanel {
     }
 
     private void drawBadEndingScene(Graphics2D g) {
-        if (badEndingSceneSprite != null) {
-            g.drawImage(badEndingSceneSprite, 0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT, null);
+        int sceneIndex = getBadEndingSceneIndex();
+        BufferedImage currentScene = badEndingStorySprites[sceneIndex];
+        if (currentScene != null) {
+            drawEndingSceneBackground(g, currentScene);
         } else {
             g.setColor(new Color(25, 12, 12));
-            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
         }
 
-        g.setColor(new Color(0, 0, 0, 150));
-        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+        g.setColor(new Color(0, 0, 0, 120));
+        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
 
-        g.setColor(new Color(255, 210, 210));
-        g.setFont(new Font("Dialog", Font.BOLD, 42));
-        String title = "FINAL RUIM";
-        FontMetrics titleMetrics = g.getFontMetrics();
-        g.drawString(title, (Constants.WINDOW_WIDTH - titleMetrics.stringWidth(title)) / 2, 120);
+        int margin = 28;
+        int boxHeight = 170;
+        int boxX = margin;
+        int boxY = Constants.WINDOW_HEIGHT - boxHeight - 18;
+        int boxWidth = Constants.WINDOW_WIDTH - (margin * 2);
+
+        g.setColor(new Color(35, 14, 18, 165));
+        g.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
+
+        g.setColor(new Color(245, 228, 228));
+        g.setStroke(new BasicStroke(3f));
+        g.drawRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
+
+        g.setColor(new Color(255, 220, 220));
+        g.setFont(new Font("Dialog", Font.BOLD, 30));
+        g.drawString("Final ruim", boxX + 22, boxY + 42);
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.PLAIN, 24));
-        String lineOne = "A poluição permaneceu alta e a cidade sofreu as consequências.";
-        String lineTwo = "Tente novamente com escolhas mais sustentáveis.";
-        FontMetrics textMetrics = g.getFontMetrics();
-        g.drawString(lineOne, (Constants.WINDOW_WIDTH - textMetrics.stringWidth(lineOne)) / 2, 170);
-        g.drawString(lineTwo, (Constants.WINDOW_WIDTH - textMetrics.stringWidth(lineTwo)) / 2, 206);
+        String storyText = BAD_ENDING_STORY_TEXTS[Math.min(sceneIndex, BAD_ENDING_STORY_TEXTS.length - 1)];
+        List<String> lines = wrapText(g, storyText, boxWidth - 44);
+        int textY = boxY + 82;
+        int maxLines = 3;
+        for (int i = 0; i < lines.size() && i < maxLines; i++) {
+            g.drawString(lines.get(i), boxX + 22, textY + (i * 32));
+        }
+
+        if (sceneIndex == badEndingStorySprites.length - 1) {
+            g.setFont(new Font("Dialog", Font.BOLD, 56));
+            String endText = "FIM";
+            FontMetrics endMetrics = g.getFontMetrics();
+            int endX = (Constants.WINDOW_WIDTH - endMetrics.stringWidth(endText)) / 2;
+            int endY = 124;
+
+            g.setColor(new Color(0, 0, 0, 170));
+            g.drawString(endText, endX + 3, endY + 3);
+            g.setColor(new Color(255, 230, 230, 235));
+            g.drawString(endText, endX, endY);
+        }
     }
 
     private void drawTrashItems(Graphics2D g) {
@@ -608,29 +676,103 @@ public class GamePanel extends JPanel {
     }
 
     private void drawGoodEndingScene(Graphics2D g) {
-        if (goodEndingSceneSprite != null) {
-            g.drawImage(goodEndingSceneSprite, 0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT, null);
+        BufferedImage currentScene = goodEndingStorySprites[getGoodEndingSceneIndex()];
+        if (currentScene != null) {
+            drawEndingSceneBackground(g, currentScene);
         } else {
             g.setColor(new Color(10, 20, 18));
-            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
         }
 
-        g.setColor(new Color(0, 0, 0, 145));
-        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+        g.setColor(new Color(0, 0, 0, 120));
+        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
 
-        g.setColor(new Color(214, 255, 214));
-        g.setFont(new Font("Dialog", Font.BOLD, 42));
-        String title = "FINAL BOM";
-        FontMetrics titleMetrics = g.getFontMetrics();
-        g.drawString(title, (Constants.WINDOW_WIDTH - titleMetrics.stringWidth(title)) / 2, 120);
+        int margin = 28;
+        int boxHeight = 170;
+        int boxX = margin;
+        int boxY = Constants.WINDOW_HEIGHT - boxHeight - 18;
+        int boxWidth = Constants.WINDOW_WIDTH - (margin * 2);
+
+        g.setColor(new Color(15, 20, 35, 165));
+        g.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
+
+        g.setColor(new Color(240, 240, 245));
+        g.setStroke(new BasicStroke(3f));
+        g.drawRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
 
         g.setColor(Color.WHITE);
+        g.setFont(new Font("Dialog", Font.BOLD, 30));
+        g.drawString("Final bom", boxX + 22, boxY + 42);
+
         g.setFont(new Font("Dialog", Font.PLAIN, 24));
-        String lineOne = "A cidade respondeu bem às suas decisões!";
-        String lineTwo = "Com menor poluição, o futuro pode ser mais sustentável.";
-        FontMetrics textMetrics = g.getFontMetrics();
-        g.drawString(lineOne, (Constants.WINDOW_WIDTH - textMetrics.stringWidth(lineOne)) / 2, 170);
-        g.drawString(lineTwo, (Constants.WINDOW_WIDTH - textMetrics.stringWidth(lineTwo)) / 2, 206);
+        List<String> lines = wrapText(g, GOOD_ENDING_STORY_TEXT, boxWidth - 44);
+        int textY = boxY + 82;
+        int maxLines = 3;
+        for (int i = 0; i < lines.size() && i < maxLines; i++) {
+            g.drawString(lines.get(i), boxX + 22, textY + (i * 32));
+        }
+
+        if (getGoodEndingSceneIndex() == goodEndingStorySprites.length - 1) {
+            g.setColor(new Color(255, 255, 255, 230));
+            g.setFont(new Font("Dialog", Font.BOLD, 56));
+            String endText = "FIM";
+            FontMetrics endMetrics = g.getFontMetrics();
+            int endX = (Constants.WINDOW_WIDTH - endMetrics.stringWidth(endText)) / 2;
+            int endY = 124;
+
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawString(endText, endX + 3, endY + 3);
+            g.setColor(new Color(255, 255, 255, 235));
+            g.drawString(endText, endX, endY);
+        }
+    }
+
+    private void drawEndingSceneBackground(Graphics2D g, BufferedImage image) {
+        // Keep all ending images rendered with the same target area and aspect behavior.
+        int targetW = Constants.WINDOW_WIDTH;
+        int targetH = Constants.WINDOW_HEIGHT;
+
+        double scale = Math.max(targetW / (double) image.getWidth(), targetH / (double) image.getHeight());
+        int drawW = (int) Math.round(image.getWidth() * scale);
+        int drawH = (int) Math.round(image.getHeight() * scale);
+        int drawX = (targetW - drawW) / 2;
+        int drawY = (targetH - drawH) / 2;
+
+        Shape previousClip = g.getClip();
+        g.setClip(0, 0, targetW, targetH);
+        g.drawImage(image, drawX, drawY, drawW, drawH, null);
+        g.setClip(previousClip);
+    }
+
+    private List<String> wrapText(Graphics2D g, String text, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.trim().isEmpty()) {
+            return lines;
+        }
+
+        FontMetrics metrics = g.getFontMetrics();
+        String[] words = text.trim().split("\\s+");
+        StringBuilder currentLine = new StringBuilder();
+
+        for (String word : words) {
+            String candidate = currentLine.length() == 0 ? word : currentLine + " " + word;
+            if (metrics.stringWidth(candidate) <= maxWidth) {
+                currentLine.setLength(0);
+                currentLine.append(candidate);
+            } else {
+                if (currentLine.length() > 0) {
+                    lines.add(currentLine.toString());
+                    currentLine.setLength(0);
+                }
+                currentLine.append(word);
+            }
+        }
+
+        if (currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+        }
+
+        return lines;
     }
 
     private class PhaseTwoInputController extends KeyAdapter {
