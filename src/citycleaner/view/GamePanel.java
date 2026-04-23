@@ -7,88 +7,144 @@ import citycleaner.model.world.Platform;
 import citycleaner.model.world.TrashItem;
 import citycleaner.util.Constants;
 import citycleaner.util.ResourceLoader;
+import citycleaner.view.phase2.PhaseTwoController;
 import citycleaner.view.renderer.BackgroundRenderer;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JButton;
+import javax.swing.JPanel;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Stroke;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Painel principal do jogo: renderizacao e game loop.
+ * Fase 2: coleta de lixo com tempo limitado.
  */
 public class GamePanel extends JPanel {
+    private static final long PHASE_DURATION_MS = 20_000L;
+    private static final int BIN_X = 530;
+    private static final int BIN_Y = 356;
+    private static final int BIN_WIDTH = 90;
+    private static final int BIN_HEIGHT = 126;
+
     private final Player player;
     private final List<Platform> platforms;
-    private final List<Point> teleportMarkers;
-    private final List<TrashItem> trashItems;
     private final KeyboardController keyboardController;
     private final BufferedImage playerSpriteOne;
     private final BufferedImage playerSpriteTwo;
+    private final BufferedImage trashSprite;
+    private final BufferedImage binSprite;
+    private final int ecoScore;
+    private final int pollutionLevel;
+    private final JButton startPhaseButton;
+    private final PhaseTwoController phaseTwoController;
+
     private boolean running = true;
-    private int currentLevel = 1;
-    private int nextTeleportIndex = 0;
+    private int currentLevel = 2;
     private int playerAnimationTick = 0;
     private boolean useFirstSprite = true;
+    private boolean showInstructions = true;
 
     public GamePanel() {
+        this(60, 0, 0, 1);
+    }
+
+    public GamePanel(int initialPollutionLevel) {
+        this(initialPollutionLevel, 0, 0, 1);
+    }
+
+    public GamePanel(int initialPollutionLevel, int initialEcoScore, int initialCompletedSteps, int initialTotalSteps) {
         setPreferredSize(new Dimension(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT));
         setFocusable(true);
+        setLayout(null);
 
-        player = new Player(100, 300);
+        pollutionLevel = Math.max(0, Math.min(100, initialPollutionLevel));
+        ecoScore = Math.max(0, initialEcoScore);
+
+        player = new Player(60, Constants.GAME_HEIGHT - Constants.PLAYER_HEIGHT - 64);
         playerSpriteOne = ResourceLoader.loadImage("sprites/Personagem1.png");
         playerSpriteTwo = ResourceLoader.loadImage("sprites/Personagem2.png");
+        BufferedImage loadedTrashSprite = ResourceLoader.loadImage("sprites/newBanana.png");
+        if (loadedTrashSprite == null) {
+            loadedTrashSprite = ResourceLoader.loadImage("sprites/banana.png");
+        }
+        if (loadedTrashSprite == null) {
+            loadedTrashSprite = ResourceLoader.loadImage("sprites/banana.png.png");
+        }
+        trashSprite = loadedTrashSprite;
 
-        teleportMarkers = createTeleportMarkers();
-        trashItems = createTrashItems();
+        BufferedImage loadedBinSprite = ResourceLoader.loadImage("sprites/lata.png");
+        if (loadedBinSprite == null) {
+            loadedBinSprite = ResourceLoader.loadImage("sprites/latao.png");
+        }
+        binSprite = loadedBinSprite;
+
         platforms = createLevel(currentLevel);
 
-        keyboardController = new KeyboardController(player, this::teleportToNextMarker);
+        keyboardController = new KeyboardController(player);
         addKeyListener(keyboardController);
+        addKeyListener(new PhaseTwoInputController());
+
+        phaseTwoController = new PhaseTwoController(
+            player,
+            new Rectangle(BIN_X, BIN_Y, BIN_WIDTH, BIN_HEIGHT),
+            PHASE_DURATION_MS
+        );
+        phaseTwoController.initializeTrash(6);
+
+        startPhaseButton = new JButton("Iniciar Fase 2");
+        startPhaseButton.setFont(new Font("Dialog", Font.BOLD, 20));
+        startPhaseButton.setFocusable(false);
+        startPhaseButton.addActionListener(e -> startPhaseTwo());
+        add(startPhaseButton);
 
         startGameLoop();
     }
 
-    private List<Point> createTeleportMarkers() {
-        List<Point> markers = new ArrayList<>();
-
-        // Pontos definidos manualmente com base no print enviado pelo usuario.
-        markers.add(new Point(246, 324)); // sacolinha branca ao lado da lixeira
-        markers.add(new Point(348, 232)); // plataforma da casinha
-        markers.add(new Point(864, 232)); // plataforma superior direita
-        markers.add(new Point(764, 292)); // plataforma direita do meio
-        markers.add(new Point(514, 362)); // plataforma central
-        markers.add(new Point(264, 432)); // plataforma inferior esquerda
-
-        return markers;
-    }
-
-    private List<TrashItem> createTrashItems() {
-        List<TrashItem> items = new ArrayList<>();
-
-        // O unico lixo real da cena fica na sacolinha branca apontada no print 2.
-        items.add(new TrashItem(246, 324, 18, Constants.POINTS_ITEM));
-
-        return items;
+    @Override
+    public void doLayout() {
+        super.doLayout();
+        int width = 220;
+        int height = 46;
+        startPhaseButton.setBounds(
+            (getWidth() - width) / 2,
+            Constants.GAME_HEIGHT - 74,
+            width,
+            height
+        );
     }
 
     private List<Platform> createLevel(int level) {
         List<Platform> levelPlatforms = new ArrayList<>();
 
-        if (level == 1) {
-            for (int i = 0; i < Constants.GAME_WIDTH; i += 64) {
-                levelPlatforms.add(new Platform(i, Constants.GAME_HEIGHT - 64, 64, 64));
-            }
-
-            levelPlatforms.add(new Platform(200, 450, 128, 32));
-            levelPlatforms.add(new Platform(450, 380, 128, 32));
-            levelPlatforms.add(new Platform(700, 310, 128, 32));
-            levelPlatforms.add(new Platform(300, 250, 96, 32));
-            levelPlatforms.add(new Platform(800, 250, 128, 32));
+        if (level == 2) {
+            levelPlatforms.add(new Platform(0, Constants.GAME_HEIGHT - 64, Constants.GAME_WIDTH, 64));
         }
 
         return levelPlatforms;
+    }
+
+    private void startPhaseTwo() {
+        if (!showInstructions) {
+            return;
+        }
+
+        showInstructions = false;
+        startPhaseButton.setVisible(false);
+        phaseTwoController.startPhase();
+        requestFocusInWindow();
     }
 
     private void startGameLoop() {
@@ -119,21 +175,23 @@ public class GamePanel extends JPanel {
     }
 
     private void update() {
-        PhysicsEngine.update(player, platforms);
-        updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
-        collectTrashItems();
-    }
+        startPhaseButton.setVisible(showInstructions);
 
-    private void teleportToNextMarker() {
-        if (teleportMarkers.isEmpty()) {
+        if (showInstructions) {
+            player.stopMoving();
+            updatePlayerAnimation(false);
             return;
         }
 
-        Point target = teleportMarkers.get(nextTeleportIndex);
-        player.teleportTo(target.x - (Constants.PLAYER_WIDTH / 2), target.y - Constants.PLAYER_HEIGHT);
-        nextTeleportIndex = (nextTeleportIndex + 1) % teleportMarkers.size();
-        collectTrashItems();
-        repaint();
+        if (phaseTwoController.isPhaseFinished()) {
+            player.stopMoving();
+            updatePlayerAnimation(false);
+            return;
+        }
+
+        PhysicsEngine.update(player, platforms);
+        updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
+        phaseTwoController.update();
     }
 
     @Override
@@ -143,60 +201,222 @@ public class GamePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         BackgroundRenderer.draw(g2d, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
-        drawPlatforms(g2d);
-        drawTeleportMarkers(g2d);
+        drawBinArea(g2d);
+        drawTrashItems(g2d);
+        drawCarriedTrashHint(g2d);
         drawPlayer(g2d);
+        drawCountdown(g2d);
+        drawPhaseScore(g2d);
+        drawPollutionBar(g2d);
         drawHUD(g2d);
+
+        if (phaseTwoController.isScoreFeedbackVisible()) {
+            drawScoreFeedback(g2d);
+        }
+
+        if (showInstructions) {
+            drawInstructionsOverlay(g2d);
+        }
+
+        if (phaseTwoController.isPhaseFinished()) {
+            drawResultOverlay(g2d);
+        }
     }
 
-    private void drawPlatforms(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
-        g.setColor(new Color(139, 69, 19));
+    private void drawBinArea(Graphics2D g) {
+        Rectangle bin = phaseTwoController.getBinBounds();
 
-        for (Platform platform : platforms) {
-            g.fillRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
-
-            g.setColor(new Color(101, 50, 15));
+        if (binSprite != null) {
+            drawImageContain(g, binSprite, bin.x, bin.y, bin.width, bin.height);
+        } else {
+            g.setColor(new Color(42, 60, 86, 170));
+            g.fillRoundRect(bin.x, bin.y, bin.width, bin.height, 20, 20);
+            g.setColor(new Color(220, 230, 245, 220));
             g.setStroke(new BasicStroke(2f));
-            g.drawRect(platform.getX(), platform.getY(), platform.getWidth(), platform.getHeight());
-            g.setColor(new Color(139, 69, 19));
+            g.drawRoundRect(bin.x, bin.y, bin.width, bin.height, 20, 20);
+
+            int lidY = bin.y - 12;
+            g.setColor(new Color(178, 190, 205, 220));
+            g.fillRoundRect(bin.x + 12, lidY, bin.width - 24, 14, 8, 8);
         }
 
-        g.setStroke(previousStroke);
-    }
+        g.setColor(new Color(240, 245, 255));
+        g.setFont(new Font("Dialog", Font.BOLD, 13));
+        g.drawString("JOGUE O LIXO AQUI", bin.x - 12, bin.y - 18);
 
-    private void drawTeleportMarkers(Graphics2D g) {
-        Stroke previousStroke = g.getStroke();
-
-        for (int i = 0; i < teleportMarkers.size(); i++) {
-            Point marker = teleportMarkers.get(i);
-            int radius = i == nextTeleportIndex ? 24 : 22;
-            int diameter = radius * 2;
-            int x = marker.x - radius;
-            int y = marker.y - radius;
-
-            g.setColor(new Color(255, 0, 0, i == nextTeleportIndex ? 90 : 60));
-            g.fillOval(x, y, diameter, diameter);
-
-            g.setColor(new Color(220, 20, 20, 220));
-            g.setStroke(new BasicStroke(i == nextTeleportIndex ? 4f : 3f));
-            g.drawOval(x, y, diameter, diameter);
-            g.drawLine(marker.x - 6, marker.y - 6, marker.x + 6, marker.y + 6);
-            g.drawLine(marker.x - 6, marker.y + 6, marker.x + 6, marker.y - 6);
-        }
-
-        g.setStroke(previousStroke);
-    }
-
-    private void collectTrashItems() {
-        Rectangle playerBounds = player.getBounds();
-
-        for (TrashItem trashItem : trashItems) {
-            if (trashItem.isNear(playerBounds, 28)) {
-                trashItem.collect();
-                player.collectItem(trashItem.getPoints());
+        if (!showInstructions && phaseTwoController.isPhaseStarted() && !phaseTwoController.isPhaseFinished()) {
+            Rectangle playerBounds = player.getBounds();
+            if (phaseTwoController.hasCarriedTrash() && phaseTwoController.isPlayerNearBin(playerBounds)) {
+                drawInteractionBubble(g, bin.x + (bin.width / 2), bin.y - 52, "E: Depositar lixo");
             }
         }
+    }
+
+    private void drawTrashItems(Graphics2D g) {
+        for (TrashItem item : phaseTwoController.getTrashItems()) {
+            int r = item.getRadius();
+            int x = item.getCenterX() - r;
+            int y = item.getCenterY() - r;
+            int d = r * 2;
+
+            if (trashSprite != null) {
+                drawImageContain(g, trashSprite, x, y, d, d);
+            } else {
+                g.setColor(new Color(232, 232, 232, 235));
+                g.fillOval(x, y, d, d);
+                g.setColor(new Color(80, 85, 90, 240));
+                g.setStroke(new BasicStroke(2f));
+                g.drawOval(x, y, d, d);
+
+                g.setColor(new Color(90, 110, 120));
+                g.setFont(new Font("Dialog", Font.BOLD, 11));
+                g.drawString("LIXO", x - 2, y - 6);
+            }
+        }
+
+        if (!showInstructions && !phaseTwoController.hasCarriedTrash() && isPlayerNearAnyTrash() && !phaseTwoController.isPhaseFinished()) {
+            Rectangle playerBounds = player.getBounds();
+            int hintX = playerBounds.x + (playerBounds.width / 2);
+            int hintY = playerBounds.y - 52;
+            drawInteractionBubble(g, hintX, hintY, "E: Coletar lixo");
+        }
+    }
+
+    private boolean isPlayerNearAnyTrash() {
+        Rectangle playerBounds = player.getBounds();
+        for (TrashItem item : phaseTwoController.getTrashItems()) {
+            if (item.isNear(playerBounds, 28)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void drawInteractionBubble(Graphics2D g, int centerX, int y, String text) {
+        Font oldFont = g.getFont();
+        g.setFont(new Font("Dialog", Font.BOLD, 15));
+        FontMetrics fm = g.getFontMetrics();
+        int width = fm.stringWidth(text) + 24;
+        int height = 34;
+        int x = centerX - (width / 2);
+
+        g.setColor(new Color(19, 24, 36, 225));
+        g.fillRoundRect(x, y, width, height, 12, 12);
+        g.setColor(new Color(230, 235, 245));
+        g.drawRoundRect(x, y, width, height, 12, 12);
+
+        Polygon tail = new Polygon(
+            new int[] {centerX - 8, centerX + 8, centerX},
+            new int[] {y + height - 2, y + height - 2, y + height + 10},
+            3
+        );
+        g.setColor(new Color(19, 24, 36, 225));
+        g.fillPolygon(tail);
+        g.setColor(new Color(230, 235, 245));
+        g.drawPolygon(tail);
+
+        g.setColor(Color.WHITE);
+        g.drawString(text, x + 12, y + 22);
+        g.setFont(oldFont);
+    }
+
+    private void drawCarriedTrashHint(Graphics2D g) {
+        if (!phaseTwoController.hasCarriedTrash() || showInstructions || phaseTwoController.isPhaseFinished()) {
+            return;
+        }
+
+        int x = (int) player.getX() + (Constants.PLAYER_WIDTH / 2) - 12;
+        int y = (int) player.getY() - 24;
+
+        if (trashSprite != null) {
+            drawImageContain(g, trashSprite, x, y, 24, 24);
+            return;
+        }
+
+        g.setColor(new Color(245, 245, 245, 230));
+        g.fillOval(x, y, 24, 24);
+        g.setColor(new Color(60, 60, 60, 220));
+        g.drawOval(x, y, 24, 24);
+        g.setFont(new Font("Dialog", Font.BOLD, 12));
+        g.drawString("L", x + 8, y + 16);
+    }
+
+    private void drawImageContain(Graphics2D g, BufferedImage image, int x, int y, int width, int height) {
+        double scale = Math.min(width / (double) image.getWidth(), height / (double) image.getHeight());
+        int drawW = (int) Math.round(image.getWidth() * scale);
+        int drawH = (int) Math.round(image.getHeight() * scale);
+        int drawX = x + ((width - drawW) / 2);
+        int drawY = y + ((height - drawH) / 2);
+        g.drawImage(image, drawX, drawY, drawW, drawH, null);
+    }
+
+    private void drawCountdown(Graphics2D g) {
+        if (showInstructions) {
+            return;
+        }
+
+        int remainingSeconds = phaseTwoController.getRemainingSeconds();
+
+        g.setColor(new Color(18, 22, 35, 210));
+        g.fillRoundRect((Constants.WINDOW_WIDTH / 2) - 90, 16, 180, 42, 14, 14);
+        g.setColor(new Color(230, 235, 245));
+        g.drawRoundRect((Constants.WINDOW_WIDTH / 2) - 90, 16, 180, 42, 14, 14);
+        g.setFont(new Font("Dialog", Font.BOLD, 22));
+
+        Color textColor = remainingSeconds <= 5 ? new Color(255, 120, 120) : Color.WHITE;
+        g.setColor(textColor);
+        g.drawString("Tempo: " + remainingSeconds + "s", (Constants.WINDOW_WIDTH / 2) - 70, 45);
+    }
+
+    private void drawPhaseScore(Graphics2D g) {
+        if (showInstructions) {
+            return;
+        }
+
+        g.setColor(new Color(18, 22, 35, 210));
+        g.fillRoundRect(20, 16, 220, 42, 14, 14);
+        g.setColor(new Color(230, 235, 245));
+        g.drawRoundRect(20, 16, 220, 42, 14, 14);
+        g.setFont(new Font("Dialog", Font.BOLD, 20));
+        g.setColor(Color.WHITE);
+        g.drawString("Score Fase 2: " + phaseTwoController.getScore(), 32, 44);
+    }
+
+    private void drawPollutionBar(Graphics2D g) {
+        int barWidth = 34;
+        int barHeight = Constants.GAME_HEIGHT - 80;
+        int barX = Constants.WINDOW_WIDTH - 52;
+        int barY = 26;
+
+        g.setColor(new Color(16, 18, 28, 210));
+        g.fillRoundRect(barX, barY, barWidth, barHeight, 14, 14);
+
+        int fillHeight = (int) (barHeight * (pollutionLevel / 100.0));
+        int fillY = barY + barHeight - fillHeight;
+
+        Color fillColor = pollutionLevel >= 80 ? new Color(208, 52, 52) : new Color(236, 196, 68);
+        if (pollutionLevel <= 40) {
+            fillColor = new Color(64, 175, 89);
+        }
+
+        g.setColor(fillColor);
+        g.fillRoundRect(barX + 4, fillY + 4, barWidth - 8, Math.max(0, fillHeight - 8), 10, 10);
+
+        g.setColor(new Color(235, 235, 240));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(barX, barY, barWidth, barHeight, 14, 14);
+
+        g.setFont(new Font("Dialog", Font.BOLD, 14));
+        g.drawString("P", barX + 11, barY - 8);
+        g.drawString(String.valueOf(pollutionLevel) + "%", barX - 14, barY + barHeight + 18);
+    }
+
+    private void drawScoreFeedback(Graphics2D g) {
+        int x = BIN_X + 8;
+        int y = BIN_Y - 30;
+        g.setColor(new Color(88, 222, 120));
+        g.setFont(new Font("Dialog", Font.BOLD, 24));
+        g.drawString("+" + phaseTwoController.getScoreFeedbackValue(), x, y);
     }
 
     private void drawPlayer(Graphics2D g) {
@@ -241,18 +461,97 @@ public class GamePanel extends JPanel {
         g.fillRect(0, Constants.GAME_HEIGHT, Constants.WINDOW_WIDTH, Constants.HUD_HEIGHT);
 
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 24));
+        g.setFont(new Font("Dialog", Font.BOLD, 22));
+        g.drawString("FASE 2 - COLETANDO O LIXO", 20, Constants.GAME_HEIGHT + 36);
 
-        String scoreText = "SCORE: " + player.getScore();
-        g.drawString(scoreText, 20, Constants.GAME_HEIGHT + 45);
+        g.setFont(new Font("Dialog", Font.PLAIN, 18));
+        g.drawString("Progresso: 1/1", 20, Constants.GAME_HEIGHT + 66);
+        g.drawString("Eco score: " + ecoScore, 260, Constants.GAME_HEIGHT + 66);
+        g.drawString("Poluição: " + pollutionLevel + "%", 480, Constants.GAME_HEIGHT + 66);
+    }
 
-        String livesText = "LIVES: " + player.getLives();
-        g.drawString(livesText, Constants.WINDOW_WIDTH / 2 - 50, Constants.GAME_HEIGHT + 45);
+    private void drawInstructionsOverlay(Graphics2D g) {
+        int boxX = 130;
+        int boxY = 84;
+        int boxW = Constants.WINDOW_WIDTH - 260;
+        int boxH = Constants.GAME_HEIGHT - 170;
 
-        String levelText = "LEVEL " + currentLevel;
-        g.drawString(levelText, Constants.WINDOW_WIDTH - 200, Constants.GAME_HEIGHT + 45);
+        g.setColor(new Color(10, 16, 28, 222));
+        g.fillRoundRect(boxX, boxY, boxW, boxH, 24, 24);
+        g.setColor(new Color(233, 239, 250));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(boxX, boxY, boxW, boxH, 24, 24);
 
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        g.drawString("T ou E = teleporta para o proximo ponto", 20, Constants.GAME_HEIGHT + 66);
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Dialog", Font.BOLD, 34));
+        g.drawString("Instruções da Fase 2", boxX + 24, boxY + 52);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 20));
+        g.drawString("Esta fase é baseada em tempo: você terá 20 segundos.", boxX + 24, boxY + 106);
+        g.drawString("Objetivo: coletar o máximo de lixo e jogar na lixeira.", boxX + 24, boxY + 144);
+        g.drawString("Cada lixo depositado corretamente aumenta a pontuação.", boxX + 24, boxY + 182);
+        g.drawString("Quanto mais lixo, mais pontos.", boxX + 24, boxY + 220);
+
+        g.setFont(new Font("Dialog", Font.BOLD, 22));
+        g.setColor(new Color(255, 224, 130));
+        g.drawString("Controles:", boxX + 24, boxY + 274);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 20));
+        g.setColor(Color.WHITE);
+        g.drawString("- A / D para andar", boxX + 40, boxY + 306);
+        g.drawString("- W para pular", boxX + 40, boxY + 338);
+        g.drawString("- E para coletar e depositar lixo", boxX + 40, boxY + 370);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 17));
+        g.setColor(new Color(210, 220, 240));
+        g.drawString("Clique em Iniciar Fase 2 ou pressione ENTER para começar.", boxX + 24, boxY + boxH - 18);
+    }
+
+    private void drawResultOverlay(Graphics2D g) {
+        g.setColor(new Color(0, 0, 0, 235));
+        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Dialog", Font.BOLD, 42));
+        int centerX = Constants.WINDOW_WIDTH / 2;
+
+        String title = "Fase 2 Finalizada!";
+        FontMetrics titleMetrics = g.getFontMetrics();
+        g.drawString(title, centerX - (titleMetrics.stringWidth(title) / 2), 180);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 30));
+        String scoreText = "Pontuação total da fase: " + phaseTwoController.getScore();
+        FontMetrics scoreMetrics = g.getFontMetrics();
+        g.drawString(scoreText, centerX - (scoreMetrics.stringWidth(scoreText) / 2), 248);
+
+        g.setFont(new Font("Dialog", Font.PLAIN, 23));
+        g.setColor(new Color(220, 228, 245));
+        String tipOne = "Você concluiu os 20 segundos de coleta!";
+        String tipTwo = "Quanto mais lixo coletado corretamente, maior o impacto positivo.";
+        FontMetrics tipsMetrics = g.getFontMetrics();
+        g.drawString(tipOne, centerX - (tipsMetrics.stringWidth(tipOne) / 2), 320);
+        g.drawString(tipTwo, centerX - (tipsMetrics.stringWidth(tipTwo) / 2), 356);
+    }
+
+    private class PhaseTwoInputController extends KeyAdapter {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            int key = e.getKeyCode();
+
+            if (showInstructions) {
+                if (key == KeyEvent.VK_ENTER || key == KeyEvent.VK_E) {
+                    startPhaseTwo();
+                }
+                return;
+            }
+
+            if (phaseTwoController.isPhaseFinished()) {
+                return;
+            }
+
+            if (key == KeyEvent.VK_E) {
+                phaseTwoController.interact();
+            }
+        }
     }
 }

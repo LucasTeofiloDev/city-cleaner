@@ -8,6 +8,10 @@ import javax.swing.*;
  * Janela principal do jogo City Cleaner
  */
 public class MainWindow extends JFrame {
+    private int phaseOneFinalPollutionLevel = 60;
+    private int phaseOneFinalEcoScore = 0;
+    private int phaseOneCompletedSteps = 0;
+    private int phaseOneTotalSteps = 4;
     
     public MainWindow() {
         setTitle("City Cleaner - Environmental Platformer");
@@ -39,15 +43,25 @@ public class MainWindow extends JFrame {
     }
 
     private void startPhaseOne() {
-        PhaseOnePanel phaseOnePanel = new PhaseOnePanel(this::startGame);
+        PhaseOnePanel phaseOnePanel = new PhaseOnePanel(result -> startGame(result));
         setContentPane(phaseOnePanel);
         revalidate();
         repaint();
         phaseOnePanel.requestFocusInWindow();
     }
 
-    private void startGame() {
-        GamePanel gamePanel = new GamePanel();
+    private void startGame(PhaseOnePanel.PhaseOneResult result) {
+        phaseOneFinalPollutionLevel = result.getPollutionLevel();
+        phaseOneFinalEcoScore = result.getEcoScore();
+        phaseOneCompletedSteps = result.getCompletedSteps();
+        phaseOneTotalSteps = result.getTotalSteps();
+
+        GamePanel gamePanel = new GamePanel(
+            phaseOneFinalPollutionLevel,
+            phaseOneFinalEcoScore,
+            phaseOneCompletedSteps,
+            phaseOneTotalSteps
+        );
         setContentPane(gamePanel);
         revalidate();
         repaint();
