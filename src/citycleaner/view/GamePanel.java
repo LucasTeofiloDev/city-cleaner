@@ -62,6 +62,7 @@ public class GamePanel extends JPanel {
     private final int phaseOneScore;
     private final int pollutionLevel;
     private final JButton startPhaseButton;
+    private final JButton badEndingNextSceneButton;
     private final PhaseTwoController phaseTwoController;
 
     private boolean running = true;
@@ -70,6 +71,7 @@ public class GamePanel extends JPanel {
     private boolean useFirstSprite = true;
     private boolean showInstructions = true;
     private long phaseFinishedAtMs = -1L;
+    private int badEndingSceneIndex = 0;
 
     public GamePanel() {
         this(60, 0, 0, 1);
@@ -134,6 +136,13 @@ public class GamePanel extends JPanel {
         startPhaseButton.addActionListener(e -> startPhaseTwo());
         add(startPhaseButton);
 
+        badEndingNextSceneButton = new JButton("Proxima cena");
+        badEndingNextSceneButton.setFont(new Font("Dialog", Font.BOLD, 20));
+        badEndingNextSceneButton.setFocusable(false);
+        badEndingNextSceneButton.setVisible(false);
+        badEndingNextSceneButton.addActionListener(e -> advanceBadEndingScene());
+        add(badEndingNextSceneButton);
+
         startGameLoop();
     }
 
@@ -147,6 +156,15 @@ public class GamePanel extends JPanel {
             Constants.GAME_HEIGHT - 74,
             width,
             height
+        );
+
+        int endingButtonWidth = 190;
+        int endingButtonHeight = 46;
+        badEndingNextSceneButton.setBounds(
+            Constants.WINDOW_WIDTH - endingButtonWidth - 28,
+            Constants.WINDOW_HEIGHT - endingButtonHeight - 24,
+            endingButtonWidth,
+            endingButtonHeight
         );
     }
 
@@ -200,6 +218,7 @@ public class GamePanel extends JPanel {
 
     private void update() {
         startPhaseButton.setVisible(showInstructions);
+        updateBadEndingButtonVisibility();
 
         if (showInstructions) {
             player.stopMoving();
@@ -219,6 +238,15 @@ public class GamePanel extends JPanel {
         PhysicsEngine.update(player, platforms);
         updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
         phaseTwoController.update();
+    }
+
+    private void updateBadEndingButtonVisibility() {
+        boolean shouldShowButton =
+            phaseTwoController.isPhaseFinished()
+                && isEndingSceneVisible()
+                && !hasGoodEnding()
+                && badEndingSceneIndex < badEndingStorySprites.length - 1;
+        badEndingNextSceneButton.setVisible(shouldShowButton);
     }
 
     @Override
@@ -285,13 +313,15 @@ public class GamePanel extends JPanel {
     }
 
     private int getBadEndingSceneIndex() {
-        if (phaseFinishedAtMs < 0L) {
-            return 0;
+        return Math.min(Math.max(0, badEndingSceneIndex), badEndingStorySprites.length - 1);
+    }
+
+    private void advanceBadEndingScene() {
+        if (badEndingSceneIndex < badEndingStorySprites.length - 1) {
+            badEndingSceneIndex++;
         }
 
-        long elapsedAfterResult = Math.max(0L, System.currentTimeMillis() - phaseFinishedAtMs - RESULT_OVERLAY_MS);
-        int sceneIndex = (int) (elapsedAfterResult / GOOD_ENDING_SCENE_DURATION_MS);
-        return Math.min(Math.max(0, sceneIndex), badEndingStorySprites.length - 1);
+        updateBadEndingButtonVisibility();
     }
 
     private void drawBinArea(Graphics2D g) {
