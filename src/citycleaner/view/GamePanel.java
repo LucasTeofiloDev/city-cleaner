@@ -5,6 +5,7 @@ import citycleaner.model.entity.Player;
 import citycleaner.model.physics.PhysicsEngine;
 import citycleaner.model.world.Platform;
 import citycleaner.model.world.TrashItem;
+import citycleaner.util.AudioManager;
 import citycleaner.util.Constants;
 import citycleaner.util.ResourceLoader;
 import citycleaner.view.phase2.PhaseTwoController;
@@ -37,6 +38,9 @@ public class GamePanel extends JPanel {
     private static final long PHASE_DURATION_MS = 20_000L;
     private static final long RESULT_OVERLAY_MS = 3_600L;
     private static final long GOOD_ENDING_SCENE_DURATION_MS = 3_000L;
+    private static final long ENDING_MUSIC_RETRY_MS = 1_500L;
+    private static final String GOOD_ENDING_MUSIC_PATH = "audio/music/Sunrise_on_the_Lowlands.mp3";
+    private static final String BAD_ENDING_MUSIC_PATH = "audio/music/Final_Heartbeat.mp3";
     private static final String GOOD_ENDING_STORY_TEXT =
         "Transformação não acontece da noite para o dia, mas cada escolha sua limpou um pouco mais o horizonte. "
             + "Seu exemplo ecoou, provando que grandes mudanças começam com pequenas atitudes conscientes.";
@@ -72,6 +76,8 @@ public class GamePanel extends JPanel {
     private boolean showInstructions = true;
     private long phaseFinishedAtMs = -1L;
     private int badEndingSceneIndex = 0;
+    private String activeEndingMusicPath;
+    private long nextEndingMusicAttemptAtMs;
 
     public GamePanel() {
         this(60, 0, 0, 1);
@@ -230,6 +236,9 @@ public class GamePanel extends JPanel {
             if (phaseFinishedAtMs < 0L) {
                 phaseFinishedAtMs = System.currentTimeMillis();
             }
+            if (isEndingSceneVisible()) {
+                ensureEndingMusic();
+            }
             player.stopMoving();
             updatePlayerAnimation(false);
             return;
@@ -238,6 +247,29 @@ public class GamePanel extends JPanel {
         PhysicsEngine.update(player, platforms);
         updatePlayerAnimation(Math.abs(player.getVelX()) > 0.01f);
         phaseTwoController.update();
+    }
+
+    private void ensureEndingMusic() {
+        long now = System.currentTimeMillis();
+        if (now < nextEndingMusicAttemptAtMs) {
+            return;
+        }
+
+        String endingMusicPath = hasGoodEnding() ? GOOD_ENDING_MUSIC_PATH : BAD_ENDING_MUSIC_PATH;
+        if (endingMusicPath.equalsIgnoreCase(activeEndingMusicPath)) {
+            return;
+        }
+
+        AudioManager.playBackgroundMusic(endingMusicPath);
+        String currentBackgroundPath = AudioManager.getCurrentBackgroundPath();
+
+        if (endingMusicPath.equalsIgnoreCase(currentBackgroundPath)) {
+            activeEndingMusicPath = endingMusicPath;
+            return;
+        }
+
+        activeEndingMusicPath = null;
+        nextEndingMusicAttemptAtMs = now + ENDING_MUSIC_RETRY_MS;
     }
 
     private void updateBadEndingButtonVisibility() {

@@ -56,6 +56,8 @@ public class MainWindow extends JFrame {
         phaseOneCompletedSteps = result.getCompletedSteps();
         phaseOneTotalSteps = result.getTotalSteps();
 
+        AudioManager.playBackgroundMusic("audio/music/Tidal_Warning.mp3");
+
         GamePanel gamePanel = new GamePanel(
             phaseOneFinalPollutionLevel,
             phaseOneFinalScore,
