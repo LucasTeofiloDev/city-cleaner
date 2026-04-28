@@ -219,13 +219,16 @@ public class PhaseOnePanel extends JPanel {
         super.doLayout();
         int width = 280;
         int height = 48;
-        continueButton.setBounds((getWidth() - width) / 2, Constants.GAME_HEIGHT - 60, width, height);
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
+        continueButton.setBounds((windowW - width) / 2, gameH - 60, width, height);
 
         int tutorialButtonWidth = 190;
         int tutorialButtonHeight = 46;
         tutorialButton.setBounds(
-            (getWidth() - tutorialButtonWidth) / 2,
-            (Constants.GAME_HEIGHT / 2) + 144,
+            (windowW - tutorialButtonWidth) / 2,
+            (gameH / 2) + 144,
             tutorialButtonWidth,
             tutorialButtonHeight
         );
@@ -235,7 +238,10 @@ public class PhaseOnePanel extends JPanel {
         List<Platform> levelPlatforms = new ArrayList<>();
 
         // Keep only an invisible floor so movement physics still works.
-        levelPlatforms.add(new Platform(0, PHASE_ONE_GROUND_Y, Constants.GAME_WIDTH, 64));
+        int windowW = getWidth() > 0 ? getWidth() : Constants.GAME_WIDTH;
+        int windowH = getHeight() > 0 ? getHeight() : Constants.WINDOW_HEIGHT;
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
+        levelPlatforms.add(new Platform(0, gameH - 56, windowW, 64));
         return levelPlatforms;
     }
 

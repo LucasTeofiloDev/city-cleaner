@@ -157,9 +157,12 @@ public class GamePanel extends JPanel {
         super.doLayout();
         int width = 220;
         int height = 46;
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
         startPhaseButton.setBounds(
-            (getWidth() - width) / 2,
-            Constants.GAME_HEIGHT - 74,
+            (windowW - width) / 2,
+            gameH - 74,
             width,
             height
         );
@@ -167,8 +170,8 @@ public class GamePanel extends JPanel {
         int endingButtonWidth = 190;
         int endingButtonHeight = 46;
         badEndingNextSceneButton.setBounds(
-            Constants.WINDOW_WIDTH - endingButtonWidth - 28,
-            Constants.WINDOW_HEIGHT - endingButtonHeight - 24,
+            windowW - endingButtonWidth - 28,
+            windowH - endingButtonHeight - 24,
             endingButtonWidth,
             endingButtonHeight
         );
@@ -178,7 +181,10 @@ public class GamePanel extends JPanel {
         List<Platform> levelPlatforms = new ArrayList<>();
 
         if (level == 2) {
-            levelPlatforms.add(new Platform(0, Constants.GAME_HEIGHT - 64, Constants.GAME_WIDTH, 64));
+            int windowW = getWidth() > 0 ? getWidth() : Constants.GAME_WIDTH;
+            int windowH = getHeight() > 0 ? getHeight() : Constants.WINDOW_HEIGHT;
+            int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
+            levelPlatforms.add(new Platform(0, gameH - 64, windowW, 64));
         }
 
         return levelPlatforms;
@@ -288,7 +294,11 @@ public class GamePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         boolean endingSceneVisible = phaseTwoController.isPhaseFinished() && isEndingSceneVisible();
 
-        BackgroundRenderer.draw(g2d, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
+
+        BackgroundRenderer.draw(g2d, windowW, gameH);
         drawBinArea(g2d);
         drawTrashItems(g2d);
         drawCarriedTrashHint(g2d);
@@ -391,8 +401,10 @@ public class GamePanel extends JPanel {
         if (currentScene != null) {
             drawEndingSceneBackground(g, currentScene);
         } else {
+            int windowW = getWidth();
+            int windowH = getHeight();
             g.setColor(new Color(25, 12, 12));
-            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
+            g.fillRect(0, 0, windowW, windowH);
         }
 
         g.setColor(new Color(0, 0, 0, 120));
@@ -400,9 +412,11 @@ public class GamePanel extends JPanel {
 
         int margin = 28;
         int boxHeight = 170;
+        int windowW = getWidth();
+        int windowH = getHeight();
         int boxX = margin;
-        int boxY = Constants.WINDOW_HEIGHT - boxHeight - 18;
-        int boxWidth = Constants.WINDOW_WIDTH - (margin * 2);
+        int boxY = windowH - boxHeight - 18;
+        int boxWidth = windowW - (margin * 2);
 
         g.setColor(new Color(35, 14, 18, 165));
         g.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
@@ -429,7 +443,7 @@ public class GamePanel extends JPanel {
             g.setFont(new Font("Dialog", Font.BOLD, 56));
             String endText = "FIM";
             FontMetrics endMetrics = g.getFontMetrics();
-            int endX = (Constants.WINDOW_WIDTH - endMetrics.stringWidth(endText)) / 2;
+            int endX = (getWidth() - endMetrics.stringWidth(endText)) / 2;
             int endY = 124;
 
             g.setColor(new Color(0, 0, 0, 170));
@@ -544,15 +558,16 @@ public class GamePanel extends JPanel {
 
         int remainingSeconds = phaseTwoController.getRemainingSeconds();
 
+        int windowW = getWidth();
         g.setColor(new Color(18, 22, 35, 210));
-        g.fillRoundRect((Constants.WINDOW_WIDTH / 2) - 90, 16, 180, 42, 14, 14);
+        g.fillRoundRect((windowW / 2) - 90, 16, 180, 42, 14, 14);
         g.setColor(new Color(230, 235, 245));
-        g.drawRoundRect((Constants.WINDOW_WIDTH / 2) - 90, 16, 180, 42, 14, 14);
+        g.drawRoundRect((windowW / 2) - 90, 16, 180, 42, 14, 14);
         g.setFont(new Font("Dialog", Font.BOLD, 22));
 
         Color textColor = remainingSeconds <= 5 ? new Color(255, 120, 120) : Color.WHITE;
         g.setColor(textColor);
-        g.drawString("Tempo: " + remainingSeconds + "s", (Constants.WINDOW_WIDTH / 2) - 70, 45);
+        g.drawString("Tempo: " + remainingSeconds + "s", (windowW / 2) - 70, 45);
     }
 
     private void drawPhaseScore(Graphics2D g) {
@@ -571,8 +586,11 @@ public class GamePanel extends JPanel {
 
     private void drawPollutionBar(Graphics2D g) {
         int barWidth = 34;
-        int barHeight = Constants.GAME_HEIGHT - 80;
-        int barX = Constants.WINDOW_WIDTH - 52;
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
+        int barHeight = gameH - 80;
+        int barX = windowW - 52;
         int barY = 26;
 
         g.setColor(new Color(16, 18, 28, 210));
@@ -644,23 +662,28 @@ public class GamePanel extends JPanel {
     }
 
     private void drawHUD(Graphics2D g) {
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
         g.setColor(new Color(Constants.COLOR_HUD));
-        g.fillRect(0, Constants.GAME_HEIGHT, Constants.WINDOW_WIDTH, Constants.HUD_HEIGHT);
+        g.fillRect(0, gameH, windowW, Constants.HUD_HEIGHT);
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.BOLD, 22));
-        g.drawString("FASE 2 - COLETANDO O LIXO", 20, Constants.GAME_HEIGHT + 36);
+        g.drawString("FASE 2 - COLETANDO O LIXO", 20, gameH + 36);
 
         g.setFont(new Font("Dialog", Font.PLAIN, 18));
-        g.drawString("Progresso: 1/1", 20, Constants.GAME_HEIGHT + 66);
-        g.drawString("Poluição: " + pollutionLevel + "%", 260, Constants.GAME_HEIGHT + 66);
+        g.drawString("Progresso: 1/1", 20, gameH + 66);
+        g.drawString("Poluição: " + pollutionLevel + "%", 260, gameH + 66);
     }
 
     private void drawInstructionsOverlay(Graphics2D g) {
         int boxX = 130;
         int boxY = 84;
-        int boxW = Constants.WINDOW_WIDTH - 260;
-        int boxH = Constants.GAME_HEIGHT - 170;
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int boxW = windowW - 260;
+        int boxH = Math.max(0, windowH - Constants.HUD_HEIGHT - 170);
 
         g.setColor(new Color(10, 16, 28, 222));
         g.fillRoundRect(boxX, boxY, boxW, boxH, 24, 24);
@@ -694,12 +717,15 @@ public class GamePanel extends JPanel {
     }
 
     private void drawResultOverlay(Graphics2D g) {
+        int windowW = getWidth();
+        int windowH = getHeight();
+        int gameH = Math.max(0, windowH - Constants.HUD_HEIGHT);
         g.setColor(new Color(0, 0, 0, 235));
-        g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.GAME_HEIGHT);
+        g.fillRect(0, 0, windowW, gameH);
 
         g.setColor(Color.WHITE);
         g.setFont(new Font("Dialog", Font.BOLD, 42));
-        int centerX = Constants.WINDOW_WIDTH / 2;
+        int centerX = windowW / 2;
 
         String title = "Fase 2 Finalizada!";
         FontMetrics titleMetrics = g.getFontMetrics();
@@ -742,8 +768,10 @@ public class GamePanel extends JPanel {
         if (currentScene != null) {
             drawEndingSceneBackground(g, currentScene);
         } else {
+            int windowW = getWidth();
+            int windowH = getHeight();
             g.setColor(new Color(10, 20, 18));
-            g.fillRect(0, 0, Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
+            g.fillRect(0, 0, windowW, windowH);
         }
 
         g.setColor(new Color(0, 0, 0, 120));
@@ -751,9 +779,11 @@ public class GamePanel extends JPanel {
 
         int margin = 28;
         int boxHeight = 170;
+        int windowW = getWidth();
+        int windowH = getHeight();
         int boxX = margin;
-        int boxY = Constants.WINDOW_HEIGHT - boxHeight - 18;
-        int boxWidth = Constants.WINDOW_WIDTH - (margin * 2);
+        int boxY = windowH - boxHeight - 18;
+        int boxWidth = windowW - (margin * 2);
 
         g.setColor(new Color(15, 20, 35, 165));
         g.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 24, 24);
@@ -779,7 +809,7 @@ public class GamePanel extends JPanel {
             g.setFont(new Font("Dialog", Font.BOLD, 56));
             String endText = "FIM";
             FontMetrics endMetrics = g.getFontMetrics();
-            int endX = (Constants.WINDOW_WIDTH - endMetrics.stringWidth(endText)) / 2;
+            int endX = (getWidth() - endMetrics.stringWidth(endText)) / 2;
             int endY = 124;
 
             g.setColor(new Color(0, 0, 0, 150));
@@ -791,8 +821,8 @@ public class GamePanel extends JPanel {
 
     private void drawEndingSceneBackground(Graphics2D g, BufferedImage image) {
         // Keep all ending images rendered with the same target area and aspect behavior.
-        int targetW = Constants.WINDOW_WIDTH;
-        int targetH = Constants.WINDOW_HEIGHT;
+        int targetW = getWidth();
+        int targetH = getHeight();
 
         double scale = Math.max(targetW / (double) image.getWidth(), targetH / (double) image.getHeight());
         int drawW = (int) Math.round(image.getWidth() * scale);
